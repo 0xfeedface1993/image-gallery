@@ -1,0 +1,60 @@
+{
+  "originHash" : "65994ba265bc841c1c3cc971ebb13e6dbdd487253c33b3bfb6c93816ef7e6fae",
+  "pins" : [
+    {
+      "identity" : "chainbuilder",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/0xfeedface1993/ChainBuilder.git",
+      "state" : {
+        "revision" : "38e13ab1239479e5008da17deebdc93d1343e57c",
+        "version" : "0.1.1"
+      }
+    },
+    {
+      "identity" : "combinex",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/0xfeedface1993/CombineX.git",
+      "state" : {
+        "revision" : "f73eee728a7826a2855fabb380300187f42f5649",
+        "version" : "0.4.1"
+      }
+    },
+    {
+      "identity" : "swift-atomics",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/apple/swift-atomics.git",
+      "state" : {
+        "revision" : "cd142fd2f64be2100422d658e7411e39489da985",
+        "version" : "1.2.0"
+      }
+    },
+    {
+      "identity" : "swift-log",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/apple/swift-log.git",
+      "state" : {
+        "revision" : "9cb486020ebf03bfa5b5df985387a14a98744537",
+        "version" : "1.6.1"
+      }
+    },
+    {
+      "identity" : "swift-syntax",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/apple/swift-syntax.git",
+      "state" : {
+        "revision" : "64889f0c732f210a935a0ad7cda38f77f876262d",
+        "version" : "509.1.1"
+      }
+    },
+    {
+      "identity" : "url-image",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/0xfeedface1993/url-image.git",
+      "state" : {
+        "branch" : "main",
+        "revision" : "3a6e8a0c4791799ede73f05fbe10d41d4ab11329"
+      }
+    }
+  ],
+  "version" : 3
+}

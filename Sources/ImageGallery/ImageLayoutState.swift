@@ -29,6 +29,8 @@ package struct ImageLayoutState: Equatable {
         size.rotate(rotationAngle)
     }
     
+    var normalizaCenter: Point
+    
     /// 图片缩/放+旋转+位移后的位置和大小
     var frame: Rects {
         let bounds = bounds
@@ -180,7 +182,7 @@ extension CGSize {
     }
 }
 
-struct Point: Equatable {
+struct Point: Equatable, CustomStringConvertible {
     var x: Double
     var y: Double
     
@@ -189,6 +191,10 @@ struct Point: Equatable {
     }
     
     static let zero = Point(x: .zero, y: .zero)
+    
+    var description: String {
+        "x: \(x), y: \(y)"
+    }
 }
 
 extension Point {

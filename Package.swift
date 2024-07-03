@@ -15,7 +15,7 @@ let package = Package(
     dependencies: [
         .package(url: "https://github.com/0xfeedface1993/url-image.git", branch: "main"),
         .package(url: "https://github.com/0xfeedface1993/ChainBuilder.git", from: "0.1.1"),
-        .package(url: "https://github.com/0xfeedface1993/WebShell.git", from: "3.0.7")
+        .package(path: "../async-system")
     ],
     targets: [
         // Targets are the basic building blocks of a package, defining a module or a test suite.
@@ -26,7 +26,7 @@ let package = Package(
                 .product(name: "URLImage", package: "url-image"),
                 .product(name: "URLImageStore", package: "url-image"),
                 .product(name: "ChainBuilder", package: "ChainBuilder"),
-                .product(name: "WebShell", package: "WebShell"),
+                .product(name: "AsyncSystem", package: "async-system"),
             ]
         ),
         .testTarget(

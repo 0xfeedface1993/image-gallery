@@ -14,9 +14,7 @@ struct TwoTapsViewModifier: ViewModifier {
         content.gesture(
             TapGesture(count: 2)
                 .onEnded({ _ in
-                    withAnimation(.spring().speed(1.5)) {
-                        action()
-                    }
+                    action()
                 })
         )
     }

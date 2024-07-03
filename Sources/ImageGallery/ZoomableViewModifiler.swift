@@ -9,10 +9,7 @@ import SwiftUI
 import Combine
 
 struct ZoomViewModifiler: ViewModifier {
-    @Binding var base: ImageLayoutState
-    @Binding var dynamic: ImageLayoutState
-    @Binding var isRotate: Bool
-    @Binding var isZooming: Bool
+    @ObservedObject var model: GallrayViewModel.Item
     
     @State private var scaleMode: ImageTransition = .init(mode: .scale(1.0, .zero)) {
         didSet {
@@ -39,7 +36,7 @@ struct ZoomViewModifiler: ViewModifier {
                 .removeDuplicates(by: { $0.0 == $1.0 && $0.1 == $1.1 })
                 .receive(on: DispatchQueue.main)
         ) { (scale, rotate) in
-            dynamic = base.transform(scale, in: containerSize).transform(rotate, in: containerSize)
+            model.tempState = model.state.transform(scale, in: containerSize).transform(rotate, in: containerSize)
         }
     }
 
@@ -47,33 +44,29 @@ struct ZoomViewModifiler: ViewModifier {
         if #available(iOS 17.0, macOS 14.0, *) {
             return RotateGesture()
                 .onChanged({ value in
-                    if !isRotate {
-                        isRotate = true
+                    if !model.isRotate {
+                        model.isRotate = true
                     }
                     rotateMode = .init(mode: .rotate(value.rotation, value.startLocation.point))
                 })
                 .onEnded({ value in
-                    let next = dynamic
-                    withAnimation(.spring().speed(1.5)) {
-                        isRotate = false
-                        base = next
-                    }
+                    let next = model.tempState
+                    model.state = next
+                    model.isRotate = false
                 })
         } else {
             // Fallback on earlier versions
             return RotationGesture()
                 .onChanged({ value in
-                    if !isRotate {
-                        isRotate = true
+                    if !model.isRotate {
+                        model.isRotate = true
                     }
                     rotateMode = .init(mode: .rotate(Angle(radians: value.radians), .zero))
                 })
                 .onEnded({ value in
-                    let next = dynamic
-                    withAnimation(.spring().speed(1.5)) {
-                        isRotate = false
-                        base = next
-                    }
+                    let next = model.tempState
+                    model.state = next
+                    model.isRotate = false
                 })
         }
     }
@@ -82,31 +75,27 @@ struct ZoomViewModifiler: ViewModifier {
         if #available(iOS 17.0, macOS 14.0, *) {
             return MagnifyGesture(minimumScaleDelta: 0.005)
                 .onChanged({ value in
-                    if !isZooming {
-                        isZooming = true
+                    if !model.isZooming {
+                        model.isZooming = true
                     }
                     scaleMode = .init(mode: .scale(value.magnification, value.startLocation.point))
                 })
                 .onEnded({ value in
-                    withAnimation(.spring().speed(1.5)) {
-                        isZooming = false
-                        base = dynamic
-                    }
+                    model.state = model.tempState
+                    model.isZooming = false
                 })
         } else {
             // Fallback on earlier versions
             return MagnificationGesture()
                 .onChanged({ value in
-                    if !isZooming {
-                        isZooming = true
+                    if !model.isZooming {
+                        model.isZooming = true
                     }
                     scaleMode = .init(mode: .scale(value.magnitude, .zero))
                 })
                 .onEnded({ value in
-                    withAnimation(.spring().speed(1.5)) {
-                        isZooming = false
-                        base = dynamic
-                    }
+                    model.state = model.tempState
+                    model.isZooming = false
                 })
         }
     }

@@ -1,6 +1,7 @@
 import SwiftUI
 import URLImageStore
 import URLImage
+import OSLog
 
 public protocol ImageProvider {
     var url: URL { get }
@@ -11,6 +12,17 @@ extension URL: ImageProvider {
         self
     }
 }
+
+enum UserAction {
+    case tap(Int)
+    case doubleTap(Int)
+    case doubleTapOutside
+    case drage(Int)
+    case scale(Int)
+    case rotate(Int)
+}
+
+fileprivate let logger = Logger(subsystem: "UI", category: "ImageGallrey")
 
 public struct ImagesGallary: View {
     @StateObject private var model: GallrayViewModel
@@ -27,109 +39,100 @@ public struct ImagesGallary: View {
                 ForEach(model.images, id: \.url) { image in
                     ImageNodeView(item: image)
                         .frame(width: proxy.size.width, height: proxy.size.height)
-                        .environment(\.imageTargetTransformer,  { (base, current, next) in
-                            let (value, overflow) = ImageFrameBounce(state: base, containerSize: proxy.size.size, next: next).control()
-                            switch overflow {
-                            case .none:
-                                break
-                            case .leadingOut(let space):
-                                guard base.size.width == proxy.size.width else {
-                                    Task { @MainActor in
-                                        withAnimation(.spring().speed(1.5)) {
-                                            offset = model.contentOffset.x
-                                        }
-                                    }
-                                    break
-                                }
-                                let scrollOffset = model.contentOffset.offset(.init(width: -space, height: 0))
-                                var nextLocation = CGPoint(x: min(max(scrollOffset.x, -proxy.size.width), 0), y: scrollOffset.y)
-                                let remind = abs(nextLocation.x.truncatingRemainder(dividingBy: proxy.size.width))
-                                let isNextPageEnable = model.contentOffset.x > nextLocation.x && remind > (proxy.size.width / 3.0)
-                                nextLocation.x = floor(nextLocation.x + (isNextPageEnable ? -(proxy.size.width - remind):remind))
-                                model.contentOffset = nextLocation
-                                Task { @MainActor in
-                                    withAnimation(.spring().speed(1.5)) {
-                                        offset = nextLocation.x
-                                    }
-                                }
-                                onOffsetChange(nextLocation.x, in: proxy.size)
-                            case .trallingOut(let space):
-                                guard base.size.width == proxy.size.width else {
-                                    Task { @MainActor in
-                                        withAnimation(.spring().speed(1.5)) {
-                                            offset = model.contentOffset.x
-                                        }
-                                    }
-                                    break
-                                }
-                                let scrollOffset = model.contentOffset.offset(.init(width: space, height: 0))
-                                var nextLocation = CGPoint(x: min(max(scrollOffset.x, -proxy.size.width), 0), y: scrollOffset.y)
-                                let remind = abs(nextLocation.x.truncatingRemainder(dividingBy: proxy.size.width))
-                                let isNextPageEnable = model.contentOffset.x > nextLocation.x && remind > (proxy.size.width / 3.0)
-                                nextLocation.x = floor(nextLocation.x + (isNextPageEnable ? -(proxy.size.width - remind):remind))
-                                model.contentOffset = nextLocation
-                                Task { @MainActor in
-                                    withAnimation(.spring().speed(1.5)) {
-                                        offset = nextLocation.x
-                                    }
-                                }
-                                onOffsetChange(nextLocation.x, in: proxy.size)
-                            }
-                            return value
-                        })
-                        .environment(\.imageProgressTransformer, { base, next in
-                            if base.size.width == proxy.size.width {
-                                let (value, overflow) = ImageFrameBounce(state: base, containerSize: proxy.size.size, next: next).control()
-                                switch overflow {
-                                case .none:
-                                    break
-                                case .leadingOut(let space):
-                                    guard base.size.width == proxy.size.width else {
-                                        break
-                                    }
-                                    let scrollOffset = model.contentOffset.offset(.init(width: floor(-space), height: 0))
-                                    offset = scrollOffset.x
-//                                    withAnimation(.smooth) {
-//                                        offset = scrollOffset.x
-//                                    }
-                                case .trallingOut(let space):
-                                    guard base.size.width == proxy.size.width else {
-                                        break
-                                    }
-                                    let scrollOffset = model.contentOffset.offset(.init(width: floor(space), height: 0))
-                                    withAnimation(.smooth) {
-                                        offset = scrollOffset.x
-                                    }
-                                }
-                                return value
-                            }
-                            
-                            return next
-                        })
                 }
             }
             .frame(width: proxy.size.width * CGFloat(max(model.images.count, 1)))
+            .background(Color.black.ignoresSafeArea())
             .offset(x: offset)
-            .gesture(
-                DragGesture()
+            .simultaneousGesture(
+                DragGesture(coordinateSpace: .local)
                     .onChanged { value in
-                        offset = value.translation.width + model.contentOffset.x
-                        onOffsetChange(offset, in: proxy.size)
+                        guard let currentImage = model.currentImage else {
+                            return
+                        }
+                        
+                        let size = proxy.size
+                        
+                        guard currentImage.state.bounds.width <= size.width else {
+                            let page = currentImage
+                            let nextImageInnerOffsetState = page.state.transform(.init(mode: .move(value.translation.size)), in: size.size)
+                            // logger.debug("try move position \(page.state.center) to \(nextImageInnerOffsetState.center)")
+                            page.tempState = nextImageInnerOffsetState
+                            model.activeDragState(currentImage)
+                            model.isDrag = false
+                            return
+                        }
+                        
+                        model.endImagesDragState()
+                        model.isDrag = true
+                        
+                        model.tempOffset = model.contentOffset.offset(CGSize(width: value.translation.width, height: 0))
+                        onOffsetChange(model.tempOffset.x, in: size)
                     }
                     .onEnded { value in
-                        let oldValue = offset
-                        var next = min(max(oldValue, -proxy.size.width), 0)
-                        let remind = abs(next.truncatingRemainder(dividingBy: proxy.size.width))
-                        next += model.contentOffset.x > next && remind > (proxy.size.width / 3.0) ? -(proxy.size.width - remind):remind
-                        model.contentOffset = CGPoint(x: next, y: 0)
-                        if next != oldValue {
-                            withAnimation(.spring().speed(1.5)) {
-                                offset = next
-                            }
+                        guard let currentImage = model.currentImage else {
+                            model.isDrag = false
+                            return
                         }
-                        onOffsetChange(next, in: proxy.size)
+                        
+                        let size = proxy.size
+                        
+                        guard currentImage.state.bounds.width <= size.width else {
+                            let (value, _) = ImageFrameBounce(state: currentImage.state, containerSize: size.size, next: value.translation.size).control()
+                            let nextState = currentImage.state.transform(.init(mode: .move(value)), in: size.size)
+                            currentImage.state = nextState
+                            currentImage.tempState = nextState
+                            model.endImagesDragState()
+                            model.isDrag = false
+                            return
+                        }
+                        
+                        model.endImagesDragState()
+                        let lastOffset = model.contentOffset
+                        let predictValue = lastOffset.offset(CGSize(width: value.translation.width, height: 0))
+                        var next = min(max(predictValue.x, -size.width * Double(model.images.count - 1)), 0)
+                        let remind = abs(next.truncatingRemainder(dividingBy: size.width))
+                        next += lastOffset.x > next && remind > (size.width / 3.0) ? -(size.width - remind):remind
+                        model.contentOffset = CGPoint(x: next, y: 0)
+                        model.tempOffset = CGPoint(x: next, y: 0)
+                        model.isDrag = false
+                        onOffsetChange(next, in: size)
                     }
             )
+            .onChange(of: model.unionOffset) { newValue in
+                let x = floor(newValue.x)
+                let update = offset != x
+                guard update else {
+                    return
+                }
+                if model.isDrag {
+                    withAnimation(.spring(blendDuration: 0.1).speed(1.5)) {
+                        offset = x
+                    }
+                    return
+                }
+                withAnimation(.spring().speed(1.5)) {
+                    offset = x
+                }
+            }
+        }
+        .overlayed {
+            VStack(alignment: .center, spacing: 0) {
+                HStack {
+                    Spacer()
+                    Text("\(model.page + 1)/\(model.images.count)")
+                        .foregroundColor(.white)
+                    Spacer()
+                }
+                .frame(height: 44)
+                .overlay(Image(systemName: "arrow.left").foregroundColor(.white), alignment: .leading)
+                
+                Spacer()
+                
+                Rectangle()
+                    .foregroundColor(.blue.opacity(0.8))
+                    .frame(height: 56)
+            }
         }
     }
     
@@ -141,11 +144,14 @@ public struct ImagesGallary: View {
         guard x < 0 else {
             return 0
         }
-        return Int(
-            ceil(
-                x.truncatingRemainder(dividingBy: parentSize.width)
+        
+        let next = abs(
+            Int(
+                (x / parentSize.width).rounded(.towardZero)
             )
         )
+        
+        return max(min(model.images.count - 1, next), 0)
     }
 }
 

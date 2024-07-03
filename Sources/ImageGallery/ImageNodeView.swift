@@ -7,7 +7,7 @@
 
 import SwiftUI
 import URLImageStore
-import AnyErase
+import AsyncSystem
 
 struct ImageNodeView: View {
     @ObservedObject var item: GallrayViewModel.Item
