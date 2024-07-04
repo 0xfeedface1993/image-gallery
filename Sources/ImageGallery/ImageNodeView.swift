@@ -25,8 +25,10 @@ struct ImageNodeView: View {
             }
         }
         .overlayed {
-            if let cgImage = cgImage {
-                ZoomingView(image: cgImage, model: item)
+            GeometryReader { proxy in
+                if let cgImage = cgImage {
+                    ZoomingView(image: cgImage, parameter: LayoutParameter(originSize: cgImage.size, parentSize: proxy.size.size), model: item)
+                }
             }
         }
         .once {

@@ -53,11 +53,9 @@ public struct ImagesGallary: View {
                         
                         let size = proxy.size
                         
-                        guard currentImage.state.bounds.width <= size.width else {
-                            let page = currentImage
-                            let nextImageInnerOffsetState = page.state.transform(.init(mode: .move(value.translation.size)), in: size.size)
-                            // logger.debug("try move position \(page.state.center) to \(nextImageInnerOffsetState.center)")
-                            page.tempState = nextImageInnerOffsetState
+                        guard currentImage.state.bounds.width <= 1 else {
+                            let translation = proxy.size.size.normalization(value.translation.size)
+                            currentImage.tempState = currentImage.state.transform(.init(mode: .move(translation)))
                             model.activeDragState(currentImage)
                             model.isDrag = false
                             return
@@ -77,9 +75,10 @@ public struct ImagesGallary: View {
                         
                         let size = proxy.size
                         
-                        guard currentImage.state.bounds.width <= size.width else {
-                            let (value, _) = ImageFrameBounce(state: currentImage.state, containerSize: size.size, next: value.translation.size).control()
-                            let nextState = currentImage.state.transform(.init(mode: .move(value)), in: size.size)
+                        guard currentImage.state.bounds.width <= 1 else {
+                            let translation = proxy.size.size.normalization(value.translation.size)
+                            let (value, _) = ImageFrameBounce(state: currentImage.state, next: translation).control()
+                            let nextState = currentImage.state.transform(.init(mode: .move(value)))
                             currentImage.state = nextState
                             currentImage.tempState = nextState
                             model.endImagesDragState()
@@ -100,7 +99,7 @@ public struct ImagesGallary: View {
                     }
             )
             .onChange(of: model.unionOffset) { newValue in
-                let x = floor(newValue.x)
+                let x = newValue.x
                 let update = offset != x
                 guard update else {
                     return

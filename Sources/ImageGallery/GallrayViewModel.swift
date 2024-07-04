@@ -67,9 +67,9 @@ final class GallrayViewModel: ObservableObject {
 extension GallrayViewModel {
     @ChainBuiler
     final class Item: ObservableObject {
-        @Published var state: ImageLayoutState
-        @Published var tempState: ImageLayoutState
-        @Published var unionState: ImageLayoutState
+        @Published var state: NormalizationLayoutState
+        @Published var tempState: NormalizationLayoutState
+        @Published var unionState: NormalizationLayoutState
         @Published var isDrag: Bool
         @Published var isRotate: Bool
         @Published var isZooming: Bool
@@ -85,7 +85,8 @@ extension GallrayViewModel {
         }
         
         convenience init(url: URL) {
-            self.init(state: ImageLayoutState(center: .zero, rotationAngle: .zero, originSize: .zero, factor: 1.0, normalizaCenter: .init(x: 0.5, y: 0.5)), tempState: ImageLayoutState(center: .zero, rotationAngle: .zero, originSize: .zero, factor: 1.0, normalizaCenter: .init(x: 0.5, y: 0.5)), unionState: ImageLayoutState(center: .zero, rotationAngle: .zero, originSize: .zero, factor: 1.0, normalizaCenter: .init(x: 0.5, y: 0.5)), isDrag: false, isRotate: false, isZooming: false, metadata: url, url: url, cancellation: nil)
+            let base = NormalizationLayoutState(center: .center, rotationAngle: .zero, factor: 1.0)
+            self.init(state: base, tempState: base, unionState: base, isDrag: false, isRotate: false, isZooming: false, metadata: url, url: url, cancellation: nil)
             
             let gesture = self._isDrag.projectedValue
                 .combineLatest(self._isRotate.projectedValue, self._isZooming.projectedValue)
@@ -114,7 +115,8 @@ extension GallrayViewModel {
         }
         
         convenience init(metadata: ImageProvider) {
-            self.init(state: ImageLayoutState(center: .zero, rotationAngle: .zero, originSize: .zero, factor: 1.0, normalizaCenter: .init(x: 0.5, y: 0.5)), tempState: ImageLayoutState(center: .zero, rotationAngle: .zero, originSize: .zero, factor: 1.0, normalizaCenter: .init(x: 0.5, y: 0.5)), unionState: ImageLayoutState(center: .zero, rotationAngle: .zero, originSize: .zero, factor: 1.0, normalizaCenter: .init(x: 0.5, y: 0.5)), isDrag: false, isRotate: false, isZooming: false, metadata: metadata.url, url: metadata.url, cancellation: nil)
+            let base = NormalizationLayoutState(center: .center, rotationAngle: .zero, factor: 1.0)
+            self.init(state: base, tempState: base, unionState: base, isDrag: false, isRotate: false, isZooming: false, metadata: metadata, url: metadata.url, cancellation: nil)
             
             let gesture = self._isDrag.projectedValue
                 .combineLatest(self._isRotate.projectedValue, self._isZooming.projectedValue)

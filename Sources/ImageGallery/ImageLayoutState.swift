@@ -9,27 +9,96 @@ import Foundation
 import SwiftUI
 import ChainBuilder
 
-/// 图片绘制信息, 所有坐标是笛卡尔坐标系
 @ChainBuiler
-package struct ImageLayoutState: Equatable {
+package struct ImageLayoutDiscription: Equatable {
+    /// 图片所在的中心点
+    let center: Point
+    /// 图片旋转角度
+    let rotationAngle: Angle
+    /// 图片原始大小
+    let originSize: Size
+    /// 缩放系数
+    let factor: Double
+    /// 图片缩/放后大小
+    let size: Size
+    /// 图片缩/放+旋转后的大小
+    let bounds: Size
+    /// 图片缩/放+旋转+位移后的位置和大小
+    let frame: Rects
+}
+
+@ChainBuiler
+package struct LayoutParameter {
+    let originSize: Size
+    let parentSize: Size
+    
+    func restore(_ normalization: NormalizationLayoutState) -> ImageLayoutDiscription {
+        let factor = factor(normalization.factor)
+        let size = originSize.scale(factor)
+        let bounds = size.rotate(normalization.rotationAngle)
+        let center = point(normalization.center)
+        let frame = frame(bounds, center: center)
+        return ImageLayoutDiscription(center: center, rotationAngle: normalization.rotationAngle, originSize: originSize, factor: factor, size: size, bounds: size, frame: frame)
+    }
+    
+    func factor(_ value: Double) -> Double {
+        originSize.fitting(parentSize) * value
+    }
+    
+    func point(_ value: Point) -> Point {
+        value.cgValue.applying(CGAffineTransform(scaleX: parentSize.width, y: parentSize.height)).point
+    }
+    
+    func frame(_ bounds: Size, center: Point) -> Rects {
+        let minX = center.x - bounds.width / 2.0
+        let minY = center.y - bounds.height / 2.0
+        let maxX = center.x + bounds.width / 2.0
+        let maxY = center.y + bounds.height / 2.0
+        
+        return .init(topLeading: .init(x: minX, y: minY),
+                     bottomLeading: .init(x: minX, y: maxY),
+                     topTrailling: .init(x: maxX, y: minY),
+                     bottomTrailling: .init(x: maxX, y: maxY))
+    }
+    
+    func normalization(_ transition: ImageTransition) -> ImageTransition {
+        switch transition.mode {
+        case .scale(let scale, let value):
+            return ImageTransition(mode: .scale(scale, normalization(value)))
+        case .rotate(let angle, let value):
+            return ImageTransition(mode: .rotate(angle, normalization(value)))
+        case .move(let value):
+            return ImageTransition(mode: .move(normalization(value)))
+        }
+    }
+    
+    func normalization(_ value: Size) -> Size {
+        parentSize.normalization(value)
+    }
+    
+    func normalization(_ value: Point) -> Point {
+        parentSize.normalization(value)
+    }
+}
+
+/// 归一化的图片绘制信息
+@ChainBuiler
+package struct NormalizationLayoutState: Equatable {
     /// 图片所在的中心点
     var center: Point
     /// 图片旋转角度
     var rotationAngle: Angle
-    /// 图片原始大小
-    var originSize: Size
     /// 缩放系数
     var factor: Double
+    
     /// 图片缩/放后大小
     var size: Size {
-        originSize.scale(factor)
+        Size.default.scale(factor)
     }
     /// 图片缩/放+旋转后的大小
     var bounds: Size {
         size.rotate(rotationAngle)
     }
-    
-    var normalizaCenter: Point
     
     /// 图片缩/放+旋转+位移后的位置和大小
     var frame: Rects {
@@ -45,8 +114,10 @@ package struct ImageLayoutState: Equatable {
                      bottomTrailling: .init(x: maxX, y: maxY))
     }
     
-    func transform(_ transition: ImageTransition, in parentSize: Size) -> Self {
-        ImageComposer(state: self, transition: transition).apply(in: parentSize)
+    static let `default` = Self(center: .center, rotationAngle: .zero, factor: 1.0)
+    
+    func transform(_ transition: ImageTransition) -> Self {
+        ImageComposer(state: self, transition: transition).apply()
     }
 }
 
@@ -82,10 +153,10 @@ package struct ImageTransition: Equatable {
 
 @ChainBuiler
 package struct ImageComposer {
-    let state: ImageLayoutState
+    let state: NormalizationLayoutState
     let transition: ImageTransition
     
-    func apply(in parentSize: Size) -> ImageLayoutState {
+    func apply() -> NormalizationLayoutState {
         switch transition.mode {
         case .scale(let factor, let anchor):
             let targetFactor = state.factor * factor
@@ -119,7 +190,7 @@ package struct ImageComposer {
 /// (-w/2, -h/2) -------------- (w/2, -h/2)
 ///
 @ChainBuiler
-package struct Rects {
+package struct Rects: Equatable {
     let topLeading: Rect
     let bottomLeading: Rect
     let topTrailling: Rect
@@ -151,7 +222,7 @@ package struct Rects {
 
 package extension Rects {
     @ChainBuiler
-    struct Rect {
+    struct Rect: Equatable {
         let x: Double
         let y: Double
         
@@ -191,6 +262,7 @@ struct Point: Equatable, CustomStringConvertible {
     }
     
     static let zero = Point(x: .zero, y: .zero)
+    static let center = Point(x: 0.5, y: 0.5)
     
     var description: String {
         "x: \(x), y: \(y)"
@@ -215,6 +287,7 @@ package struct Size: Equatable {
     var height: Double
     
     static let zero = Size(width: .zero, height: .zero)
+    static let `default` = Size(width: 1.0, height: 1.0)
     
     var cgValue: CGSize {
         CGSize(width: width, height: height)
@@ -243,6 +316,14 @@ package struct Size: Equatable {
         let maxY = rotations.max(by: { $0.y < $1.y })?.y ?? 0
         
         return Size(width: maxX - minX, height: maxY - minY)
+    }
+    
+    func normalization(_ point: Point) -> Point {
+        Point(x: point.x / width, y: point.y / height)
+    }
+    
+    func normalization(_ value: Size) -> Size {
+        Size(width: value.width / width, height: value.height / height)
     }
 }
 

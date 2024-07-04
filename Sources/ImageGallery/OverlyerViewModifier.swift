@@ -25,7 +25,7 @@ struct OverlyerViewModifier: ViewModifier {
 
 extension View {
     @ViewBuilder
-    func overlayed(@ViewBuilder _ builder: @escaping () -> any View) -> some View {
+    func overlayed(@ViewBuilder _ builder: @escaping () -> some View) -> some View {
         modifier(OverlyerViewModifier(builder: builder))
     }
 }
