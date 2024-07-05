@@ -27,6 +27,7 @@ fileprivate let logger = Logger(subsystem: "UI", category: "ImageGallrey")
 public struct ImagesGallary: View {
     @StateObject private var model: GallrayViewModel
     @State private var offset: Double
+    @State private var deviceOrientationChange = false
     
     public init(images: [ImageProvider]) {
         self.offset = .zero
@@ -114,6 +115,17 @@ public struct ImagesGallary: View {
                     offset = x
                 }
             }
+            .onReceive(NotificationCenter.default.publisher(for: UIDevice.orientationDidChangeNotification), perform: { _ in
+                deviceOrientationChange.toggle()
+            })
+            .onChange(of: deviceOrientationChange, perform: { _ in
+                model.images.forEach { item in
+                    item.state = .default
+                    item.tempState = .default
+                }
+                offset = CGFloat(-model.page) * proxy.size.width
+                model.contentOffset = .init(x: offset, y: 0)
+            })
         }
         .overlayed {
             VStack(alignment: .center, spacing: 0) {

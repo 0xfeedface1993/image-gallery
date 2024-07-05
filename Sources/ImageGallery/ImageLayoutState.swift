@@ -347,6 +347,7 @@ extension CGSize {
         
         let aspectWidth = parentSize.width / width
         let aspectHeight = parentSize.height / height
+        
         let aspectRatio = min(aspectWidth, aspectHeight)
         return aspectRatio
     }
