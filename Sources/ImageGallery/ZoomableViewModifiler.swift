@@ -8,40 +8,11 @@
 import SwiftUI
 import Combine
 
-fileprivate final class ZoomViewModel: ObservableObject {
-    let scaleMode = PassthroughSubject<ImageTransition, Never>()
-    let rotateMode = PassthroughSubject<ImageTransition, Never>()
-    
-    private var cancellable: AnyCancellable?
-    
-    deinit {
-        cancellable?.cancel()
-    }
-    
-    func bind(_ model: GallrayViewModel.Item, parameter: LayoutParameter) {
-        cancellable?.cancel()
-        let publisher = model.$state
-        cancellable = scaleMode
-            .combineLatest(rotateMode)
-            .map { scale, rotate in
-                (parameter.normalization(scale), parameter.normalization(rotate))
-            }
-            .sink(receiveValue: { [weak model] scale, rotate in
-                guard let model else {
-                    return
-                }
-                
-                model.tempState = model.state
-                    .transform(scale)
-                    .transform(rotate)
-            })
-    }
-}
-
 struct ZoomViewModifiler: ViewModifier {
     @ObservedObject var model: GallrayViewModel.Item
     
-    @StateObject private var viewModel = ZoomViewModel()
+    private let scaleMode = PassthroughSubject<ImageTransition, Never>()
+    private let rotateMode = PassthroughSubject<ImageTransition, Never>()
     
     var parameter: LayoutParameter
     
@@ -50,14 +21,28 @@ struct ZoomViewModifiler: ViewModifier {
         self.parameter = parameter
     }
     
+    private var publisher: AnyPublisher<NormalizationLayoutState, Never> {
+        scaleMode
+            .combineLatest(rotateMode)
+            .map { scale, rotate in
+                (parameter.normalization(scale), parameter.normalization(rotate))
+            }
+            .map({ scale, rotate in
+                model.state
+                    .transform(scale)
+                    .transform(rotate)
+            })
+            .eraseToAnyPublisher()
+    }
+    
     func body(content: Content) -> some View {
         content.gesture(
             pinchGesture()
                 .simultaneously(with: rotationGesture())
         )
-        .once {
-            viewModel.bind(model, parameter: parameter)
-        }
+        .onReceive(publisher, perform: { newValue in
+            model.tempState = newValue
+        })
     }
 
     private func rotationGesture() -> some Gesture {
@@ -67,7 +52,7 @@ struct ZoomViewModifiler: ViewModifier {
                     if !model.isRotate {
                         model.isRotate = true
                     }
-                    viewModel.rotateMode.send(.init(mode: .rotate(value.rotation, value.startLocation.point)))
+                    rotateMode.send(.init(mode: .rotate(value.rotation, value.startLocation.point)))
                 })
                 .onEnded({ value in
                     let next = model.tempState
@@ -81,7 +66,7 @@ struct ZoomViewModifiler: ViewModifier {
                     if !model.isRotate {
                         model.isRotate = true
                     }
-                    viewModel.rotateMode.send(.init(mode: .rotate(Angle(radians: value.radians), .zero)))
+                    rotateMode.send(.init(mode: .rotate(Angle(radians: value.radians), .zero)))
                 })
                 .onEnded({ value in
                     let next = model.tempState
@@ -98,7 +83,7 @@ struct ZoomViewModifiler: ViewModifier {
                     if !model.isZooming {
                         model.isZooming = true
                     }
-                    viewModel.scaleMode.send(.init(mode: .scale(value.magnification, value.startLocation.point)))
+                    scaleMode.send(.init(mode: .scale(value.magnification, value.startLocation.point)))
                 })
                 .onEnded({ value in
                     model.state = model.tempState
@@ -111,7 +96,7 @@ struct ZoomViewModifiler: ViewModifier {
                     if !model.isZooming {
                         model.isZooming = true
                     }
-                    viewModel.scaleMode.send(.init(mode: .scale(value.magnitude, .zero)))
+                    scaleMode.send(.init(mode: .scale(value.magnitude, .zero)))
                 })
                 .onEnded({ value in
                     model.state = model.tempState
