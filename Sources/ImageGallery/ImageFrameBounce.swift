@@ -10,7 +10,7 @@ import ChainBuilder
 
 @ChainBuiler
 struct ImageFrameBounce {
-    let current: NormalizationLayoutState
+    let current: NormalizedLayoutState
     let next: Size
     let imageSize: Size
     

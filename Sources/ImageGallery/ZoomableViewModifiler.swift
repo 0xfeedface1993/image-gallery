@@ -9,14 +9,15 @@ import SwiftUI
 import Combine
 
 enum CombineUpdate {
-    case temp(NormalizationLayoutState)
-    case all(temp: NormalizationLayoutState, state: NormalizationLayoutState)
+    case temp(NormalizedLayoutState)
+    case all(temp: NormalizedLayoutState, state: NormalizedLayoutState)
     case none
 }
 
 struct ZoomViewModifiler: ViewModifier {
     @ObservedObject var model: GallrayViewModel.Item
     @Environment(\.galleryOptions) private var galleryOptions
+    @Environment(\.events) private var events
     
     private let scaleMode = PassthroughSubject<UserAction, Never>()
     private let rotateMode = PassthroughSubject<UserAction, Never>()
@@ -41,6 +42,19 @@ struct ZoomViewModifiler: ViewModifier {
         )
         .onReceive(publisher, perform: { newValue in
             model.update(newValue.1, scaleAction: newValue.0, layoutOptions: galleryOptions)
+            
+            guard case let .scale(scaleCenter, factor, scaleState, _) = newValue.0,
+                  case let .rotate(rotateCenter, rotate, rotateState, _) = newValue.1 else {
+                return
+            }
+            var states = [GestureEvent.StateChange]()
+            states.append(
+                .init(change: .scale(parameter.factor(model.state.factor)), state: scaleState)
+            )
+            states.append(
+                .init(change: .rotate(model.state.rotationAngle), state: rotateState)
+            )
+            events(.gestures(.init(item: model.metadata, states: states)))
         })
     }
     

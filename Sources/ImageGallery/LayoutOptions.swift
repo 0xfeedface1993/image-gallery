@@ -7,6 +7,9 @@
 
 import Foundation
 import ChainBuilder
+import OSLog
+
+fileprivate let logger = Logger(subsystem: "Enviroments", category: "EnvironmentValues")
 
 @ChainBuiler
 public struct LayoutOptions: Equatable {
@@ -14,6 +17,7 @@ public struct LayoutOptions: Equatable {
     public var scaleLevel: ScaleLevelOptions
     public var rotateMode: RotateMode
     public var dragMode: DragMode
+    public var panelEnable: Bool
 }
 
 extension LayoutOptions {
@@ -72,12 +76,25 @@ extension LayoutOptions {
 import SwiftUI
 
 public struct LayoutOptionsKey: EnvironmentKey {
-    public static var defaultValue = LayoutOptions(capability: .all, scaleLevel: .default, rotateMode: .bounce, dragMode: .bounce)
+    public static var defaultValue = LayoutOptions(capability: .all, scaleLevel: .default, rotateMode: .bounce, dragMode: .bounce, panelEnable: true)
 }
 
 extension EnvironmentValues {
     public var galleryOptions: LayoutOptions {
         set { self[LayoutOptionsKey.self] = newValue }
         get { self[LayoutOptionsKey.self] }
+    }
+}
+
+public struct EvnentsKey: EnvironmentKey {
+    public static var defaultValue: (Events) -> Void = { _ in
+        logger.warning("default EvnentsKey value")
+    }
+}
+
+extension EnvironmentValues {
+    public var events: (Events) -> Void {
+        set { self[EvnentsKey.self] = newValue }
+        get { self[EvnentsKey.self] }
     }
 }

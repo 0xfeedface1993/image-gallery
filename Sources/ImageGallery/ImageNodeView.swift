@@ -9,12 +9,19 @@ import SwiftUI
 import URLImageStore
 import AsyncSystem
 
-struct ImageNodeView: View {
+struct ImageNodeView<Content: View>: View {
     @ObservedObject var item: GallrayViewModel.Item
     
     @State private var cgImage: CGImage?
     @Environment(\.urlImageService) private var service
-    @State private var isLoading = false
+    @State private var isLoading: Bool = false
+    
+    private var attachView: (GallrayViewModel.Item, ImageLayoutDiscription) -> Content
+    
+    init(item: GallrayViewModel.Item, @ViewBuilder attachView: @escaping (GallrayViewModel.Item, ImageLayoutDiscription) -> Content) {
+        self.item = item
+        self.attachView = attachView
+    }
     
     var body: some View {
         GeometryReader { proxy in
@@ -27,7 +34,7 @@ struct ImageNodeView: View {
             }
             .overlayed {
                 if let cgImage = cgImage {
-                    ZoomingView(image: cgImage, model: item)
+                    ZoomingView(image: cgImage, model: item, attachView: attachView)
                         .onChange(of: item.layoutUpdate) { newValue in
                             item.imageSize = cgImage.size.normalized(in: proxy.size.size)
                         }
@@ -69,5 +76,7 @@ struct ImageNodeView: View {
 }
 
 #Preview {
-    ImageNodeView(item: GallrayViewModel.Item(url: URL(string: "https://images.duanlndzi.bar/ecdb7c18e93fc76d336a787b7e357de5.jpg")!))
+    ImageNodeView(item: GallrayViewModel.Item(url: URL(string: "https://images.duanlndzi.bar/ecdb7c18e93fc76d336a787b7e357de5.jpg")!), attachView: { _, _ in
+        
+    })
 }

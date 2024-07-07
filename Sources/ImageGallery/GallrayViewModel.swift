@@ -172,8 +172,8 @@ final class GallrayViewModel: ObservableObject {
 extension GallrayViewModel {
     @ChainBuiler
     final class Item: ObservableObject {    
-        @Published var state: NormalizationLayoutState
-        @Published var unionState: NormalizationLayoutState
+        @Published var state: NormalizedLayoutState
+        @Published var unionState: NormalizedLayoutState
         @Published var imageSize: Size
         @Published var layoutUpdate: Bool
         
@@ -182,12 +182,12 @@ extension GallrayViewModel {
         let url: URL
         
         convenience init(url: URL) {
-            let base = NormalizationLayoutState(center: .center, rotationAngle: .zero, factor: 1.0)
+            let base = NormalizedLayoutState(center: .center, rotationAngle: .zero, factor: 1.0)
             self.init(state: base, unionState: base, imageSize: .default, layoutUpdate: false, metadata: url, url: url)
         }
         
         convenience init(metadata: ImageProvider) {
-            let base = NormalizationLayoutState(center: .center, rotationAngle: .zero, factor: 1.0)
+            let base = NormalizedLayoutState(center: .center, rotationAngle: .zero, factor: 1.0)
             self.init(state: base, unionState: base, imageSize: .default, layoutUpdate: false, metadata: metadata, url: metadata.url)
         }
         
@@ -227,10 +227,11 @@ extension GallrayViewModel {
                     newState = newState.transform(.create(.scale(factor, scaleCenter)))
                 }   else    {
                     let origin = newState
-//                    let imageFacor = max(imageSize.width, imageSize.height)
                     let intentFactor = origin.factor * factor
-                    let limitedFactor = layoutOptions.scaleLevel.control(intentFactor)
-                    let operationFactor = limitedFactor / origin.factor
+                    let fitting = 1 / max(imageSize.width, imageSize.height)
+                    let relativeImageFactor = intentFactor * fitting
+                    let limitedFactor = layoutOptions.scaleLevel.control(relativeImageFactor)
+                    let operationFactor = limitedFactor / fitting / origin.factor
                     newState = origin.transform(.create(.scale(operationFactor, scaleCenter)))
                 }
             }

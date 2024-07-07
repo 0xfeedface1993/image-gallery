@@ -10,21 +10,21 @@ import SwiftUI
 import ChainBuilder
 
 @ChainBuiler
-package struct ImageLayoutDiscription: Equatable {
+public struct ImageLayoutDiscription: Equatable {
     /// 图片所在的中心点
-    let center: Point
+    public let center: Point
     /// 图片旋转角度
-    let rotationAngle: Angle
+    public let rotationAngle: Angle
     /// 图片原始大小
-    let originSize: Size
+    public let originSize: Size
     /// 缩放系数
-    let factor: Double
+    public let factor: Double
     /// 图片缩/放后大小
-    let size: Size
+    public let size: Size
     /// 图片缩/放+旋转后的大小
-    let bounds: Size
+    public let bounds: Size
     /// 图片缩/放+旋转+位移后的位置和大小
-    let frame: Rects
+    public let frame: Rects
 }
 
 @ChainBuiler
@@ -32,7 +32,12 @@ package struct LayoutParameter {
     let originSize: Size
     let parentSize: Size
     
-    func restore(_ normalization: NormalizationLayoutState) -> ImageLayoutDiscription {
+    init(_ imageSize: Size, window: Size) {
+        self.originSize = imageSize
+        self.parentSize = window
+    }
+    
+    func restore(_ normalization: NormalizedLayoutState) -> ImageLayoutDiscription {
         let factor = factor(normalization.factor)
         let size = originSize.scale(factor)
         let bounds = size.rotate(normalization.rotationAngle)
@@ -73,7 +78,7 @@ package struct LayoutParameter {
     }
     
     func normalization(_ value: Size) -> Size {
-        parentSize.normalization(value)
+        parentSize.normalized(value)
     }
     
     func normalization(_ value: Point) -> Point {
@@ -83,39 +88,13 @@ package struct LayoutParameter {
 
 /// 归一化的图片绘制信息
 @ChainBuiler
-package struct NormalizationLayoutState: Equatable {
+package struct NormalizedLayoutState: Equatable {
     /// 图片所在的中心点
     var center: Point
     /// 图片旋转角度
     var rotationAngle: Angle
     /// 缩放系数
     var factor: Double
-    
-//    /// 图片原始大小
-//    var originSize: Size
-//    
-//    var size: Size {
-//        originSize.scale(factor)
-//    }
-//    
-//    /// 图片缩/放+旋转后的大小
-//    var bounds: Size {
-//        size.scale(factor).rotate(rotationAngle)
-//    }
-//    
-//    /// 图片缩/放+旋转+位移后的位置和大小
-//    var frame: Rects {
-//        let bounds = bounds
-//        let minX = center.x - bounds.width / 2.0
-//        let minY = center.y - bounds.height / 2.0
-//        let maxX = center.x + bounds.width / 2.0
-//        let maxY = center.y + bounds.height / 2.0
-//        
-//        return .init(topLeading: .init(x: minX, y: minY),
-//                     bottomLeading: .init(x: minX, y: maxY),
-//                     topTrailling: .init(x: maxX, y: minY),
-//                     bottomTrailling: .init(x: maxX, y: maxY))
-//    }
     
     static let `default` = Self(center: .center, rotationAngle: .zero, factor: 1.0)
     
@@ -184,10 +163,10 @@ package struct ImageTransition: Equatable {
 
 @ChainBuiler
 package struct ImageComposer {
-    let state: NormalizationLayoutState
+    let state: NormalizedLayoutState
     let transition: ImageTransition
     
-    func apply() -> NormalizationLayoutState {
+    func apply() -> NormalizedLayoutState {
         switch transition.mode {
         case .scale(let factor, let anchor):
             let targetFactor = factor * state.factor
@@ -203,9 +182,14 @@ package struct ImageComposer {
                     .concatenating(.init(rotationAngle: angle.radians))
                     .concatenating(.init(translationX: anchor.x, y: anchor.y))
             ).point
-            return state.rotationAngle(
-                state.rotationAngle + angle
-            ).center(next)
+            var nextAngle = Angle(degrees: state.rotationAngle.degrees + angle.degrees)
+//
+//            if nextAngle.degrees < 0 {
+//                nextAngle = Angle(degrees: 360 + nextAngle.degrees)
+//            }
+            
+//            print("base angle \(state.rotationAngle), rotate degress \(nextAngle.degrees)")
+            return state.rotationAngle(nextAngle).center(next)
         case .move(let offset):
             let nextCenter = state.center.offset(offset)
             return state.center(nextCenter)
@@ -220,11 +204,11 @@ package struct ImageComposer {
 /// (-w/2, -h/2) -------------- (w/2, -h/2)
 ///
 @ChainBuiler
-package struct Rects: Equatable {
-    let topLeading: Rect
-    let bottomLeading: Rect
-    let topTrailling: Rect
-    let bottomTrailling: Rect
+public struct Rects: Equatable {
+    public let topLeading: Rect
+    public let bottomLeading: Rect
+    public let topTrailling: Rect
+    public let bottomTrailling: Rect
     
     init(_ points: [CGPoint]) {
         guard points.count == 4 else {
@@ -241,22 +225,22 @@ package struct Rects: Equatable {
         self.bottomTrailling = .init(points[3])
     }
     
-    var width: Double {
+    public var width: Double {
         topTrailling.x - topLeading.x
     }
     
-    var height: Double {
+    public var height: Double {
         bottomLeading.y - topLeading.y
     }
 }
 
-package extension Rects {
+extension Rects {
     @ChainBuiler
-    struct Rect: Equatable {
-        let x: Double
-        let y: Double
+    public struct Rect: Equatable {
+        public let x: Double
+        public let y: Double
         
-        static let zero = Self(x: .zero, y: .zero)
+        public static let zero = Self(x: .zero, y: .zero)
         
         init(_ point: CGPoint) {
             self.x = point.x
@@ -284,18 +268,18 @@ extension CGSize {
 }
 
 @ChainBuiler
-struct Point: Equatable, CustomStringConvertible {
-    var x: Double
-    var y: Double
+public struct Point: Equatable, CustomStringConvertible {
+    public var x: Double
+    public var y: Double
     
-    var cgValue: CGPoint {
+    public var cgValue: CGPoint {
         CGPoint(x: x, y: y)
     }
     
-    static let zero = Point(x: .zero, y: .zero)
-    static let center = Point(x: 0.5, y: 0.5)
+    public static let zero = Point(x: .zero, y: .zero)
+    public static let center = Point(x: 0.5, y: 0.5)
     
-    var description: String {
+    public var description: String {
         "x: \(x), y: \(y)"
     }
 }
@@ -313,23 +297,23 @@ extension Point {
 }
 
 @ChainBuiler
-package struct Size: Equatable {
-    var width: Double
-    var height: Double
+public struct Size: Equatable {
+    public var width: Double
+    public var height: Double
     
-    static let zero = Size(width: .zero, height: .zero)
-    static let `default` = Size(width: 1.0, height: 1.0)
-    static let unknown = Size(width: .greatestFiniteMagnitude, height: .greatestFiniteMagnitude)
+    public static let zero = Size(width: .zero, height: .zero)
+    public static let `default` = Size(width: 1.0, height: 1.0)
+    public static let unknown = Size(width: .greatestFiniteMagnitude, height: .greatestFiniteMagnitude)
     
-    var cgValue: CGSize {
+    public var cgValue: CGSize {
         CGSize(width: width, height: height)
     }
     
-    func scale(_ factor: Double) -> Self {
+    public func scale(_ factor: Double) -> Self {
         Size(width: width * factor, height: height * factor)
     }
     
-    func rotate(_ angle: Angle) -> Self {
+    public func rotate(_ angle: Angle) -> Self {
         let points = [
             Point(x: -width / 2.0, y: height / 2.0),
             Point(x: width / 2.0, y: height / 2.0),
@@ -350,11 +334,11 @@ package struct Size: Equatable {
         return Size(width: maxX - minX, height: maxY - minY)
     }
     
-    func normalization(_ point: Point) -> Point {
+    public func normalization(_ point: Point) -> Point {
         Point(x: point.x / width, y: point.y / height)
     }
     
-    func normalization(_ value: Size) -> Size {
+    public func normalized(_ value: Size) -> Size {
         Size(width: value.width / width, height: value.height / height)
     }
 }

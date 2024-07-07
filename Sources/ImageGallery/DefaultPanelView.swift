@@ -32,6 +32,7 @@ struct DefaultPanelView: View {
                 Button(action: onTapBack) {
                     Image(systemName: "arrow.left")
                         .foregroundColor(.white)
+                        .padding(.leading)
                 }
             }
             .background {
