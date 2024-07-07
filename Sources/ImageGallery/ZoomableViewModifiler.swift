@@ -8,11 +8,18 @@
 import SwiftUI
 import Combine
 
+enum CombineUpdate {
+    case temp(NormalizationLayoutState)
+    case all(temp: NormalizationLayoutState, state: NormalizationLayoutState)
+    case none
+}
+
 struct ZoomViewModifiler: ViewModifier {
     @ObservedObject var model: GallrayViewModel.Item
+    @Environment(\.galleryOptions) private var galleryOptions
     
-    private let scaleMode = PassthroughSubject<ImageTransition, Never>()
-    private let rotateMode = PassthroughSubject<ImageTransition, Never>()
+    private let scaleMode = PassthroughSubject<UserAction, Never>()
+    private let rotateMode = PassthroughSubject<UserAction, Never>()
     
     var parameter: LayoutParameter
     
@@ -21,17 +28,9 @@ struct ZoomViewModifiler: ViewModifier {
         self.parameter = parameter
     }
     
-    private var publisher: AnyPublisher<NormalizationLayoutState, Never> {
+    private var publisher: AnyPublisher<(UserAction, UserAction), Never> {
         scaleMode
             .combineLatest(rotateMode)
-            .map { scale, rotate in
-                (parameter.normalization(scale), parameter.normalization(rotate))
-            }
-            .map({ scale, rotate in
-                model.state
-                    .transform(scale)
-                    .transform(rotate)
-            })
             .eraseToAnyPublisher()
     }
     
@@ -41,37 +40,27 @@ struct ZoomViewModifiler: ViewModifier {
                 .simultaneously(with: rotationGesture())
         )
         .onReceive(publisher, perform: { newValue in
-            model.tempState = newValue
+            model.update(newValue.1, scaleAction: newValue.0, layoutOptions: galleryOptions)
         })
     }
-
+    
     private func rotationGesture() -> some Gesture {
         if #available(iOS 17.0, macOS 14.0, *) {
             return RotateGesture()
                 .onChanged({ value in
-                    if !model.isRotate {
-                        model.isRotate = true
-                    }
-                    rotateMode.send(.init(mode: .rotate(value.rotation, value.startLocation.point)))
+                    onRotationnChange(parameter.normalization(value.startLocation.point), value: value.rotation)
                 })
                 .onEnded({ value in
-                    let next = model.tempState
-                    model.state = next
-                    model.isRotate = false
+                    onRotationnEnd(parameter.normalization(value.startLocation.point), value: value.rotation)
                 })
         } else {
             // Fallback on earlier versions
             return RotationGesture()
                 .onChanged({ value in
-                    if !model.isRotate {
-                        model.isRotate = true
-                    }
-                    rotateMode.send(.init(mode: .rotate(Angle(radians: value.radians), .zero)))
+                    onRotationnChange(.center, value: value)
                 })
                 .onEnded({ value in
-                    let next = model.tempState
-                    model.state = next
-                    model.isRotate = false
+                    onRotationnEnd(.center, value: value)
                 })
         }
     }
@@ -80,28 +69,56 @@ struct ZoomViewModifiler: ViewModifier {
         if #available(iOS 17.0, macOS 14.0, *) {
             return MagnifyGesture(minimumScaleDelta: 0.005)
                 .onChanged({ value in
-                    if !model.isZooming {
-                        model.isZooming = true
-                    }
-                    scaleMode.send(.init(mode: .scale(value.magnification, value.startLocation.point)))
+                    onMagnificationChange(parameter.normalization(value.startLocation.point), value: value.magnification)
                 })
                 .onEnded({ value in
-                    model.state = model.tempState
-                    model.isZooming = false
+                    onMagnificationEnd(parameter.normalization(value.startLocation.point), value: value.magnification)
                 })
         } else {
             // Fallback on earlier versions
             return MagnificationGesture()
                 .onChanged({ value in
-                    if !model.isZooming {
-                        model.isZooming = true
-                    }
-                    scaleMode.send(.init(mode: .scale(value.magnitude, .zero)))
+                    onMagnificationChange(.center, value: value.magnitude)
                 })
                 .onEnded({ value in
-                    model.state = model.tempState
-                    model.isZooming = false
+                    onMagnificationEnd(.center, value: value.magnitude)
                 })
         }
+    }
+    
+    private func onMagnificationChange(_ startLocation: Point, value: Double) {
+        guard galleryOptions.capability.contains(.scale) else {
+            return
+        }
+        scaleMode.send(
+            .scale(location: startLocation, magnification: value, state: .change, layoutOptions: galleryOptions)
+        )
+    }
+    
+    private func onMagnificationEnd(_ startLocation: Point, value: Double) {
+        guard galleryOptions.capability.contains(.scale) else {
+            return
+        }
+        scaleMode.send(
+            .scale(location: startLocation, magnification: value, state: .end, layoutOptions: galleryOptions)
+        )
+    }
+    
+    private func onRotationnChange(_ startLocation: Point, value: Angle) {
+        guard galleryOptions.capability.contains(.rotate) else {
+            return
+        }
+        rotateMode.send(
+            .rotate(location: startLocation, angle: value, state: .change, layoutOptions: galleryOptions)
+        )
+    }
+    
+    private func onRotationnEnd(_ startLocation: Point, value: Angle) {
+        guard galleryOptions.capability.contains(.rotate) else {
+            return
+        }
+        rotateMode.send(
+            .rotate(location: startLocation, angle: value, state: .end, layoutOptions: galleryOptions)
+        )
     }
 }

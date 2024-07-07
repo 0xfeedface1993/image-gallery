@@ -7,6 +7,7 @@
 
 import Foundation
 import SwiftUI
+import URLImage
 
 struct ZoomingView: View {
     var image: CGImage
@@ -27,7 +28,7 @@ struct ZoomingView: View {
     
     var body: some View {
         GeometryReader(content: { geometry in
-            Image(image, scale: 1.0, label: Text(model.url.absoluteString))
+            imageView
                 .scaleEffect(
                     LayoutParameter(originSize: image.size, parentSize: geometry.size.size).factor(unionFactor)
                 )
@@ -40,13 +41,30 @@ struct ZoomingView: View {
                 )
                 .modifier(
                     TwoTapsViewModifier(action: {
-                        model.state = .default
+                        model.reset()
                     })
                 )
                 .onChange(of: model.unionState, perform: { newValue in
                     updateState(newValue)
                 })
         })
+    }
+    
+    @ViewBuilder
+    private var imageView: some View {
+        if model.url.absoluteString.contains(".gif") {
+            GIFImage(model.url) {
+                
+            } inProgress: { progress in
+                
+            } failure: { error, completion in
+                
+            } content: { content in
+                content
+            }
+        }   else    {
+            Image(image, scale: 1.0, label: Text(model.url.absoluteString))
+        }
     }
 
     private func updateState(_ state: NormalizationLayoutState) {

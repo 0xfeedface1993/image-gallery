@@ -42,7 +42,7 @@ package struct LayoutParameter {
     }
     
     func factor(_ value: Double) -> Double {
-        originSize.fitting(parentSize) * value
+        value * originSize.fitting(parentSize)
     }
     
     func point(_ value: Point) -> Point {
@@ -61,7 +61,7 @@ package struct LayoutParameter {
                      bottomTrailling: .init(x: maxX, y: maxY))
     }
     
-    func normalization(_ transition: ImageTransition) -> ImageTransition {
+    func normalized(_ transition: ImageTransition) -> ImageTransition {
         switch transition.mode {
         case .scale(let scale, let value):
             return ImageTransition(mode: .scale(scale, normalization(value)))
@@ -91,18 +91,40 @@ package struct NormalizationLayoutState: Equatable {
     /// 缩放系数
     var factor: Double
     
-    /// 图片缩/放后大小
-    var size: Size {
-        Size.default.scale(factor)
-    }
-    /// 图片缩/放+旋转后的大小
-    var bounds: Size {
-        size.rotate(rotationAngle)
+//    /// 图片原始大小
+//    var originSize: Size
+//    
+//    var size: Size {
+//        originSize.scale(factor)
+//    }
+//    
+//    /// 图片缩/放+旋转后的大小
+//    var bounds: Size {
+//        size.scale(factor).rotate(rotationAngle)
+//    }
+//    
+//    /// 图片缩/放+旋转+位移后的位置和大小
+//    var frame: Rects {
+//        let bounds = bounds
+//        let minX = center.x - bounds.width / 2.0
+//        let minY = center.y - bounds.height / 2.0
+//        let maxX = center.x + bounds.width / 2.0
+//        let maxY = center.y + bounds.height / 2.0
+//        
+//        return .init(topLeading: .init(x: minX, y: minY),
+//                     bottomLeading: .init(x: minX, y: maxY),
+//                     topTrailling: .init(x: maxX, y: minY),
+//                     bottomTrailling: .init(x: maxX, y: maxY))
+//    }
+    
+    static let `default` = Self(center: .center, rotationAngle: .zero, factor: 1.0)
+    
+    func transform(_ transition: ImageTransition) -> Self {
+        ImageComposer(state: self, transition: transition).apply()
     }
     
-    /// 图片缩/放+旋转+位移后的位置和大小
-    var frame: Rects {
-        let bounds = bounds
+    func frame(with imageSize: Size) -> Rects {
+        let bounds = bounds(with: imageSize)
         let minX = center.x - bounds.width / 2.0
         let minY = center.y - bounds.height / 2.0
         let maxX = center.x + bounds.width / 2.0
@@ -114,10 +136,8 @@ package struct NormalizationLayoutState: Equatable {
                      bottomTrailling: .init(x: maxX, y: maxY))
     }
     
-    static let `default` = Self(center: .center, rotationAngle: .zero, factor: 1.0)
-    
-    func transform(_ transition: ImageTransition) -> Self {
-        ImageComposer(state: self, transition: transition).apply()
+    func bounds(with imageSize: Size) -> Size {
+        imageSize.scale(factor / max(imageSize.width, imageSize.height)).rotate(rotationAngle)
     }
 }
 
@@ -149,6 +169,17 @@ package struct ImageTransition: Equatable {
     static func create(_ mode: Mode) -> Self {
         .init(mode: mode)
     }
+    
+    func control(by option: LayoutOptions) -> Self {
+        switch mode {
+        case .scale(let scale, let point):
+            return .create(.scale(option.scaleLevel.control(scale), point))
+        case .rotate(let angle, let point):
+            return self
+        case .move(let size):
+            return self
+        }
+    }
 }
 
 @ChainBuiler
@@ -159,13 +190,12 @@ package struct ImageComposer {
     func apply() -> NormalizationLayoutState {
         switch transition.mode {
         case .scale(let factor, let anchor):
-            let targetFactor = state.factor * factor
+            let targetFactor = factor * state.factor
             let next = state.center.cgValue.applying(
                 CGAffineTransform(translationX: -anchor.x, y: -anchor.y)
                     .concatenating(.init(scaleX: factor, y: factor))
                     .concatenating(.init(translationX: anchor.x, y: anchor.y))
             ).point
-            
             return state.center(next).factor(targetFactor)
         case .rotate(let angle, let anchor):
             let next = state.center.cgValue.applying(
@@ -253,6 +283,7 @@ extension CGSize {
     }
 }
 
+@ChainBuiler
 struct Point: Equatable, CustomStringConvertible {
     var x: Double
     var y: Double
@@ -288,6 +319,7 @@ package struct Size: Equatable {
     
     static let zero = Size(width: .zero, height: .zero)
     static let `default` = Size(width: 1.0, height: 1.0)
+    static let unknown = Size(width: .greatestFiniteMagnitude, height: .greatestFiniteMagnitude)
     
     var cgValue: CGSize {
         CGSize(width: width, height: height)
@@ -340,16 +372,13 @@ extension GeometryProxy {
 }
 
 extension CGSize {
+    func normalized(in size: CGSize) -> CGSize {
+        CGSize(width: width / size.width, height: height / size.height)
+    }
+    
     func fitting(_ parentSize: CGSize) -> CGFloat {
-        if parentSize.width >= width, parentSize.height >= height {
-            return 1.0
-        }
-        
-        let aspectWidth = parentSize.width / width
-        let aspectHeight = parentSize.height / height
-        
-        let aspectRatio = min(aspectWidth, aspectHeight)
-        return aspectRatio
+        let normalized = self.normalized(in: parentSize)
+        return 1 / max(normalized.width, normalized.height)
     }
     
     func shrink(in size: CGSize) -> CGSize {
@@ -368,6 +397,10 @@ extension Size {
     
     func fitting(_ parentSize: Size) -> Double {
         cgValue.fitting(parentSize.cgValue)
+    }
+    
+    func normalized(in size: Size) -> Size {
+        Size(width: width / size.width, height: height / size.height)
     }
 }
 

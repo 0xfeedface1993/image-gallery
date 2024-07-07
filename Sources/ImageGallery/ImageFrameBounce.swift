@@ -10,19 +10,20 @@ import ChainBuilder
 
 @ChainBuiler
 struct ImageFrameBounce {
-    let state: NormalizationLayoutState
+    let current: NormalizationLayoutState
     let next: Size
+    let imageSize: Size
     
     func control() -> (Size, Overflow) {
         let size = Size.default
-        let nextState = state.transform(.create(.move(next)))
-        let rect = nextState.frame
+        let nextState = current.transform(.create(.move(next)))
+        let rect = nextState.frame(with: imageSize)
         
         if rect.width <= size.width && rect.height <= size.height {
-            if nextState.center.x > state.center.x {
-                return (.zero, .trallingOut(nextState.center.x - state.center.x))
-            }   else if nextState.center.x < state.center.x  {
-                return (.zero, .leadingOut(state.center.x - nextState.center.x))
+            if nextState.center.x > current.center.x {
+                return (.zero, .trallingOut(nextState.center.x - current.center.x))
+            }   else if nextState.center.x < current.center.x  {
+                return (.zero, .leadingOut(current.center.x - nextState.center.x))
             }
             return (.zero, .none)
         }

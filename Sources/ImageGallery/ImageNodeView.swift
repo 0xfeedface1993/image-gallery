@@ -17,26 +17,31 @@ struct ImageNodeView: View {
     @State private var isLoading = false
     
     var body: some View {
-        ZStack {
-            Color.clear
-            
-            if isLoading {
-                ProgressView()
+        GeometryReader { proxy in
+            ZStack {
+                Color.clear
+                
+                if isLoading {
+                    ProgressView()
+                }
             }
-        }
-        .overlayed {
-            if let cgImage = cgImage {
-                ZoomingView(image: cgImage, model: item)
+            .overlayed {
+                if let cgImage = cgImage {
+                    ZoomingView(image: cgImage, model: item)
+                        .onChange(of: item.layoutUpdate) { newValue in
+                            item.imageSize = cgImage.size.normalized(in: proxy.size.size)
+                        }
+                }
             }
-        }
-        .once {
-            isLoading = true
-            try? await loadImage()
-            isLoading = false
+            .once {
+                isLoading = true
+                try? await loadImage(proxy.size.size)
+                isLoading = false
+            }
         }
     }
     
-    private func loadImage() async throws {
+    private func loadImage(_ size: Size) async throws {
         guard let store = service.inMemoryStore else {
             print("inMemoryStore is nil")
             return
@@ -49,10 +54,16 @@ struct ImageNodeView: View {
             print("downloading [\(url)] ...")
             let result = try await service.remoteImagePublisher(url, identifier: nil).asyncValue
             print("got image size \(result.size)")
+            let ratio = result.cgImage.size.normalized(in: size)
+            item.imageSize = ratio
+            print("image size ratio: \(item.imageSize)")
             cgImage = result.cgImage
             return
         }
         
+        let ratio = image.size.normalized(in: size)
+        item.imageSize = ratio
+        print("image size ratio: \(item.imageSize)")
         cgImage = image
     }
 }
