@@ -7,6 +7,7 @@
 
 import Foundation
 import ChainBuilder
+import Core
 
 @ChainBuiler
 struct ImageFrameBounce {

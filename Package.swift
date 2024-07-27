@@ -22,12 +22,25 @@ let package = Package(
         // Targets are the basic building blocks of a package, defining a module or a test suite.
         // Targets can depend on other targets in this package and products from dependencies.
         .target(
+            name: "Core",
+            dependencies: [
+                .product(name: "ChainBuilder", package: "ChainBuilder"),
+            ]
+        ),
+        .target(
+            name: "ScreenOut",
+            dependencies: [
+                .target(name: "Core")
+            ]
+        ),
+        .target(
             name: "ImageGallery",
             dependencies: [
+                .target(name: "Core"),
                 .product(name: "URLImage", package: "url-image-gif"),
                 .product(name: "URLImageStore", package: "url-image-gif"),
-                .product(name: "ChainBuilder", package: "ChainBuilder"),
                 .product(name: "AsyncSystem", package: "async-system"),
+                .target(name: "ScreenOut")
             ]
         ),
         .testTarget(

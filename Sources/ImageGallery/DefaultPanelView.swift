@@ -14,8 +14,8 @@ struct DefaultPanelView: View {
     
     init(model: GallrayViewModel, onTapBack: @escaping () -> Void) {
         self.model = model
-        self.isDisplay = model.isDefaultCoverDisplay
         self.onTapBack = onTapBack
+        self.isDisplay = model.isDefaultCoverDisplay
     }
     
     var body: some View {
@@ -33,6 +33,7 @@ struct DefaultPanelView: View {
                     Image(systemName: "arrow.left")
                         .foregroundColor(.white)
                         .padding(.leading)
+                        .frame(width: 44, height: 44)
                 }
             }
             .background {

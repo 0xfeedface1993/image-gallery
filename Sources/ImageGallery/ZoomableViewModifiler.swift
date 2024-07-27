@@ -7,6 +7,7 @@
 
 import SwiftUI
 import Combine
+import Core
 
 enum CombineUpdate {
     case temp(NormalizedLayoutState)
@@ -43,8 +44,8 @@ struct ZoomViewModifiler: ViewModifier {
         .onReceive(publisher, perform: { newValue in
             model.update(newValue.1, scaleAction: newValue.0, layoutOptions: galleryOptions)
             
-            guard case let .scale(scaleCenter, factor, scaleState, _) = newValue.0,
-                  case let .rotate(rotateCenter, rotate, rotateState, _) = newValue.1 else {
+            guard case let .scale(_, _, scaleState, _) = newValue.0,
+                  case let .rotate(_, _, rotateState, _) = newValue.1 else {
                 return
             }
             var states = [GestureEvent.StateChange]()

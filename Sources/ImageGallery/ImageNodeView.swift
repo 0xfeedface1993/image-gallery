@@ -8,11 +8,12 @@
 import SwiftUI
 import URLImageStore
 import AsyncSystem
+import Core
 
 struct ImageNodeView<Content: View>: View {
     @ObservedObject var item: GallrayViewModel.Item
     
-    @State private var cgImage: CGImage?
+    @State private var imageSize = Size.zero
     @Environment(\.urlImageService) private var service
     @State private var isLoading: Bool = false
     
@@ -33,12 +34,10 @@ struct ImageNodeView<Content: View>: View {
                 }
             }
             .overlayed {
-                if let cgImage = cgImage {
-                    ZoomingView(image: cgImage, model: item, attachView: attachView)
-                        .onChange(of: item.layoutUpdate) { newValue in
-                            item.imageSize = cgImage.size.normalized(in: proxy.size.size)
-                        }
-                }
+                ZoomingView(imageSize: imageSize, model: item, attachView: attachView)
+            }
+            .onChange(of: item.layoutUpdate) { newValue in
+                item.imageSize = imageSize.normalized(in: proxy.size.size)
             }
             .once {
                 isLoading = true
@@ -63,15 +62,13 @@ struct ImageNodeView<Content: View>: View {
             print("got image size \(result.size)")
             let ratio = result.cgImage.size.normalized(in: size)
             item.imageSize = ratio
-            print("image size ratio: \(item.imageSize)")
-            cgImage = result.cgImage
+            self.imageSize = result.cgImage.size
             return
         }
         
         let ratio = image.size.normalized(in: size)
         item.imageSize = ratio
-        print("image size ratio: \(item.imageSize)")
-        cgImage = image
+        self.imageSize = image.size
     }
 }
 

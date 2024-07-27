@@ -10,6 +10,7 @@ import ChainBuilder
 import Combine
 import SwiftUI
 import OSLog
+import Core
 
 fileprivate let logger = Logger(subsystem: "ViewModel", category: "GallrayViewModel")
 package let uiQueue = DispatchQueue(label: "ui.workload")
@@ -18,7 +19,7 @@ final class GallrayViewModel: ObservableObject {
     /// 当前页数
     @Published var page: Int
     /// 水平卷轴偏移量
-    @Published private(set) var contentOffset: Point
+    @Published private var contentOffset: Point
     /// 图片列表
     @Published var images: [Item]
     /// UI上需要显示的水平卷轴偏移量
@@ -31,7 +32,7 @@ final class GallrayViewModel: ObservableObject {
         self.contentOffset = .zero
         self.images = data.map(Item.init(metadata:))
         self.unionOffset = .zero
-        self.isDefaultCoverDisplay = true
+        self.isDefaultCoverDisplay = false
     }
     
     var currentImage: Item? {
@@ -43,9 +44,9 @@ final class GallrayViewModel: ObservableObject {
     
     func send(_ event: UserAction) {
         switch event {
-        case .tap(let location):
+        case .tap:
             isDefaultCoverDisplay.toggle()
-        case .doubleTap(let location):
+        case .doubleTap:
             guard let item = currentImage else {
                 return
             }
@@ -67,11 +68,11 @@ final class GallrayViewModel: ObservableObject {
             case .end:
                 onEnd(item, translation: translation, state: state, galleryOptions: options)
             }
-        case .scale(let location, let magnification, let state, let options):
+        case .scale:
             break
-        case .rotate(let location, let angle, let state, let options):
+        case .rotate:
             break
-        case .move(let size):
+        case .move:
             break
         }
     }
@@ -142,9 +143,20 @@ final class GallrayViewModel: ObservableObject {
         
         let maybe = contentOffset.offset(translation.height(0))
         let next = predictPageableOffset(maybe)
+        logger.debug("final move state: \(next)")
         contentOffset = next
         unionOffset = next
         onOffsetChange(next.x)
+    }
+    
+    func move(to page: Int) {
+        let images = images
+        if images.count > 0, page >= images.startIndex, page < images.endIndex {
+            let next = Point(x: Double(-page), y: 0)
+            contentOffset = next
+            unionOffset = next
+            self.page = indexOf(next.x)
+        }
     }
     
     private func onOffsetChange(_ newValue: CGFloat) {
@@ -164,7 +176,7 @@ final class GallrayViewModel: ObservableObject {
         let lastOffset = contentOffset
         var offset = min(max(predictValue.x, -Double(images.count - 1)), 0)
         let remind = abs(offset.truncatingRemainder(dividingBy: 1.0))
-        offset += lastOffset.x > offset && remind > (1.0 / 3.0) ? -(1 - remind):remind
+        offset += lastOffset.x > offset && remind > (1.0 / 5.0) ? -(1 - remind):remind
         return Point(x: offset, y: 0)
     }
 }
@@ -202,7 +214,7 @@ extension GallrayViewModel {
             switch next {
             case .temp(let temp):
                 unionState = temp
-            case .all(let temp, let state):
+            case .all(_, let state):
                 self.state = state
                 unionState = state
             case .none:
@@ -270,5 +282,5 @@ struct GestureState: OptionSet {
     static let dragging = GestureState(rawValue: 1)
     static let zooming = GestureState(rawValue: 0x10)
     static let rotate = GestureState(rawValue: 0x100)
-    static let none = GestureState(rawValue: 0)
+    static let none = GestureState([])
 }

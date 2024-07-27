@@ -57,12 +57,12 @@ extension LayoutOptions {
         /// 最大缩放系数
         public var max: Double {
             get { _max }
-            set { Swift.max(Swift.max(Swift.min(4, newValue), 0.1), _min) }
+            set { _max = Swift.max(Swift.max(Swift.min(4, newValue), 0.1), _min) }
         }
         /// 最小缩放系数
         public var min: Double {
             get { _min }
-            set { Swift.min(Swift.max(Swift.min(4, newValue), 0.1), _max) }
+            set { _min = Swift.min(Swift.max(Swift.min(4, newValue), 0.1), _max) }
         }
         
         public static let `default` = ScaleLevelOptions(max: 2.0, min: 0.8)

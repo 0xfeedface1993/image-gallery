@@ -8,24 +8,7 @@
 import Foundation
 import SwiftUI
 import ChainBuilder
-
-@ChainBuiler
-public struct ImageLayoutDiscription: Equatable {
-    /// 图片所在的中心点
-    public let center: Point
-    /// 图片旋转角度
-    public let rotationAngle: Angle
-    /// 图片原始大小
-    public let originSize: Size
-    /// 缩放系数
-    public let factor: Double
-    /// 图片缩/放后大小
-    public let size: Size
-    /// 图片缩/放+旋转后的大小
-    public let bounds: Size
-    /// 图片缩/放+旋转+位移后的位置和大小
-    public let frame: Rects
-}
+import Core
 
 @ChainBuiler
 package struct LayoutParameter {
@@ -86,40 +69,6 @@ package struct LayoutParameter {
     }
 }
 
-/// 归一化的图片绘制信息
-@ChainBuiler
-package struct NormalizedLayoutState: Equatable {
-    /// 图片所在的中心点
-    var center: Point
-    /// 图片旋转角度
-    var rotationAngle: Angle
-    /// 缩放系数
-    var factor: Double
-    
-    static let `default` = Self(center: .center, rotationAngle: .zero, factor: 1.0)
-    
-    func transform(_ transition: ImageTransition) -> Self {
-        ImageComposer(state: self, transition: transition).apply()
-    }
-    
-    func frame(with imageSize: Size) -> Rects {
-        let bounds = bounds(with: imageSize)
-        let minX = center.x - bounds.width / 2.0
-        let minY = center.y - bounds.height / 2.0
-        let maxX = center.x + bounds.width / 2.0
-        let maxY = center.y + bounds.height / 2.0
-        
-        return .init(topLeading: .init(x: minX, y: minY),
-                     bottomLeading: .init(x: minX, y: maxY),
-                     topTrailling: .init(x: maxX, y: minY),
-                     bottomTrailling: .init(x: maxX, y: maxY))
-    }
-    
-    func bounds(with imageSize: Size) -> Size {
-        imageSize.scale(factor / max(imageSize.width, imageSize.height)).rotate(rotationAngle)
-    }
-}
-
 package struct ImageTransition: Equatable {
     enum Mode: Equatable {
         static func == (lhs: ImageTransition.Mode, rhs: ImageTransition.Mode) -> Bool {
@@ -153,11 +102,17 @@ package struct ImageTransition: Equatable {
         switch mode {
         case .scale(let scale, let point):
             return .create(.scale(option.scaleLevel.control(scale), point))
-        case .rotate(let angle, let point):
+        case .rotate:
             return self
-        case .move(let size):
+        case .move:
             return self
         }
+    }
+}
+
+extension NormalizedLayoutState {
+    func transform(_ transition: ImageTransition) -> Self {
+        ImageComposer(state: self, transition: transition).apply()
     }
 }
 
@@ -182,7 +137,7 @@ package struct ImageComposer {
                     .concatenating(.init(rotationAngle: angle.radians))
                     .concatenating(.init(translationX: anchor.x, y: anchor.y))
             ).point
-            var nextAngle = Angle(degrees: state.rotationAngle.degrees + angle.degrees)
+            let nextAngle = Angle(degrees: state.rotationAngle.degrees + angle.degrees)
 //
 //            if nextAngle.degrees < 0 {
 //                nextAngle = Angle(degrees: 360 + nextAngle.degrees)
@@ -196,59 +151,6 @@ package struct ImageComposer {
         }
     }
 }
-
-/// (-w/2, h/2) -------------- (w/2, h/2)
-///       |                        |
-///       |                        |
-///       |                        |
-/// (-w/2, -h/2) -------------- (w/2, -h/2)
-///
-@ChainBuiler
-public struct Rects: Equatable {
-    public let topLeading: Rect
-    public let bottomLeading: Rect
-    public let topTrailling: Rect
-    public let bottomTrailling: Rect
-    
-    init(_ points: [CGPoint]) {
-        guard points.count == 4 else {
-            self.topLeading = .zero
-            self.bottomLeading = .zero
-            self.topTrailling = .zero
-            self.bottomTrailling = .zero
-            return
-        }
-        
-        self.topLeading = .init(points[0])
-        self.topTrailling = .init(points[1])
-        self.bottomLeading = .init(points[2])
-        self.bottomTrailling = .init(points[3])
-    }
-    
-    public var width: Double {
-        topTrailling.x - topLeading.x
-    }
-    
-    public var height: Double {
-        bottomLeading.y - topLeading.y
-    }
-}
-
-extension Rects {
-    @ChainBuiler
-    public struct Rect: Equatable {
-        public let x: Double
-        public let y: Double
-        
-        public static let zero = Self(x: .zero, y: .zero)
-        
-        init(_ point: CGPoint) {
-            self.x = point.x
-            self.y = point.y
-        }
-    }
-}
-
 
 extension CGPoint {
     @inlinable
@@ -264,82 +166,6 @@ extension CGPoint {
 extension CGSize {
     var size: Size {
         Size(width: width, height: height)
-    }
-}
-
-@ChainBuiler
-public struct Point: Equatable, CustomStringConvertible {
-    public var x: Double
-    public var y: Double
-    
-    public var cgValue: CGPoint {
-        CGPoint(x: x, y: y)
-    }
-    
-    public static let zero = Point(x: .zero, y: .zero)
-    public static let center = Point(x: 0.5, y: 0.5)
-    
-    public var description: String {
-        "x: \(x), y: \(y)"
-    }
-}
-
-extension Point {
-    @inlinable
-    func offset(_ translation: Size) -> Point {
-        Point(x: x + translation.width, y: y + translation.height)
-    }
-    
-    func rotate(on center: Point, angle: Angle) -> Point {
-        Point(x: center.x + (x - center.x) * cos(angle.radians) - (y - center.y) * sin(angle.radians),
-              y: center.x + (x - center.x) * sin(angle.radians) - (y - center.y) * cos(angle.radians))
-    }
-}
-
-@ChainBuiler
-public struct Size: Equatable {
-    public var width: Double
-    public var height: Double
-    
-    public static let zero = Size(width: .zero, height: .zero)
-    public static let `default` = Size(width: 1.0, height: 1.0)
-    public static let unknown = Size(width: .greatestFiniteMagnitude, height: .greatestFiniteMagnitude)
-    
-    public var cgValue: CGSize {
-        CGSize(width: width, height: height)
-    }
-    
-    public func scale(_ factor: Double) -> Self {
-        Size(width: width * factor, height: height * factor)
-    }
-    
-    public func rotate(_ angle: Angle) -> Self {
-        let points = [
-            Point(x: -width / 2.0, y: height / 2.0),
-            Point(x: width / 2.0, y: height / 2.0),
-            Point(x: -width / 2.0, y: -height / 2.0),
-            Point(x: width / 2.0, y: -height / 2.0)
-        ]
-        
-        let rotations = points.map { point in
-            Point(x: point.x * cos(angle.radians) - point.y * sin(angle.radians),
-                  y: point.y * cos(angle.radians) + point.x * sin(angle.radians))
-        }
-        
-        let minX = rotations.min(by: { $0.x < $1.x })?.x ?? 0
-        let minY = rotations.min(by: { $0.y < $1.y })?.y ?? 0
-        let maxX = rotations.max(by: { $0.x < $1.x })?.x ?? 0
-        let maxY = rotations.max(by: { $0.y < $1.y })?.y ?? 0
-        
-        return Size(width: maxX - minX, height: maxY - minY)
-    }
-    
-    public func normalization(_ point: Point) -> Point {
-        Point(x: point.x / width, y: point.y / height)
-    }
-    
-    public func normalized(_ value: Size) -> Size {
-        Size(width: value.width / width, height: value.height / height)
     }
 }
 

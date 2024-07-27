@@ -9,3 +9,5 @@
 - [x] Scale、tap、rotate gesture on & off switch on the house
 - [x] GIF image supported
 - [x] Drag postion center control
+- [] Dismiss when drag up & with interective animation
+- [] Show animation at frist time display
