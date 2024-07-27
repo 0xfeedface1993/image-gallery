@@ -273,6 +273,18 @@ extension GallrayViewModel {
             return .temp(newState)
         }
     }
+    
+    func isDipslayWindow(_ image: Item) -> Bool {
+        let images = self.images
+        guard let index = images.firstIndex(where: { $0.url == image.url }) else {
+            return false
+        }
+        
+        let beforeIndex = max(images.index(before: page), images.indices.lowerBound)
+        let afterIndex = min(images.index(after: page), images.indices.upperBound)
+        
+        return beforeIndex <= index && index <= afterIndex
+    }
 }
 
 

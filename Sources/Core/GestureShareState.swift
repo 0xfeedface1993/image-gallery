@@ -7,6 +7,9 @@
 
 import SwiftUI
 import ChainBuilder
+import OSLog
+
+fileprivate let logger = Logger(subsystem: "Enviroments", category: "EnvironmentValues")
 
 @ChainBuiler
 public struct ImageLayoutDiscription: Equatable {
@@ -205,6 +208,10 @@ public enum NameCoordinateSpace: Hashable {
 extension EnvironmentValues {
     @Entry package var animateProgress: Double = 0.0
     @Entry package var screenOutCoordinateSpace: NameCoordinateSpace = .none
+    @Entry public var galleryOptions: LayoutOptions = LayoutOptions(capability: .all, scaleLevel: .default, rotateMode: .bounce, dragMode: .bounce, panelEnable: true)
+    @Entry public var events: (Events) -> Void = { _ in
+        logger.warning("default EvnentsKey value")
+    }
 }
 #else
 package struct AnimateProgressKey: EnvironmentKey {
@@ -226,6 +233,30 @@ extension EnvironmentValues {
     var screenOutCoordinateSpace: NameCoordinateSpace {
         get { self[NamedCoordinateSpaceKey.self] }
         set { self[NamedCoordinateSpaceKey.self] = newValue }
+    }
+}
+
+public struct LayoutOptionsKey: EnvironmentKey {
+    public static var defaultValue = LayoutOptions(capability: .all, scaleLevel: .default, rotateMode: .bounce, dragMode: .bounce, panelEnable: true)
+}
+
+extension EnvironmentValues {
+    public var galleryOptions: LayoutOptions {
+        set { self[LayoutOptionsKey.self] = newValue }
+        get { self[LayoutOptionsKey.self] }
+    }
+}
+
+public struct EvnentsKey: EnvironmentKey {
+    public static var defaultValue: (Events) -> Void = { _ in
+        logger.warning("default EvnentsKey value")
+    }
+}
+
+extension EnvironmentValues {
+    public var events: (Events) -> Void {
+        set { self[EvnentsKey.self] = newValue }
+        get { self[EvnentsKey.self] }
     }
 }
 #endif

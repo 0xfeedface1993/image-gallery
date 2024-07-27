@@ -26,7 +26,6 @@ struct ScreenOutGeometryProgressModifier<V: View>: ViewModifier, Animatable {
             .overlay(content: {
                 if progress > 0.0001 {
                     viewBuilder()
-                        .navigationBarBackportHidden(true)
                         .onTapGesture(perform: onTap)
                         .modifier(
                             ScreenOutGeometryEmbeedModifier(progress: progress,
@@ -75,6 +74,7 @@ struct ScreenOutGeometryEmbeedModifier: ViewModifier, Animatable {
     var bounds: CGRect
     var sourceFrame: CGRect
     var targetFrame: CGRect
+    @Environment(\.galleryOptions) private var galleryOptions
     
     var animatableData: Double {
         get { progress }

@@ -5,58 +5,6 @@ import OSLog
 import Core
 import ScreenOut
 
-public protocol ImageProvider {
-    var url: URL { get }
-}
-
-extension URL: ImageProvider {
-    public var url: URL {
-        self
-    }
-}
-
-public enum UserGestureState {
-    case start
-    case change
-    case end
-}
-
-enum UserAction {
-    case tap(location: Point, layoutOptions: LayoutOptions)
-    case doubleTap(location: Point)
-    case doubleTapOutside
-    case drag(translation: Size, state: UserGestureState, layoutOptions: LayoutOptions)
-    case scale(location: Point, magnification: Double, state: UserGestureState, layoutOptions: LayoutOptions)
-    case rotate(location: Point, angle: Angle, state: UserGestureState, layoutOptions: LayoutOptions)
-    case move(Size)
-}
-
-public struct GestureEvent {
-    public let item: ImageProvider
-    public let states: [StateChange]
-}
-
-extension GestureEvent {
-    public enum Gesture {
-        case scale(Double)
-        case rotate(Angle)
-        case move(CGSize)
-    }
-    
-    public struct StateChange {
-        public let change: Gesture
-        public let state: UserGestureState
-    }
-}
-
-public enum Events {
-    case tap(ImageProvider?)
-    case doubleTap(ImageProvider)
-    case gestures(GestureEvent)
-    case deviceOrientationChange(ImageProvider)
-    case moveToPage(ImageProvider)
-}
-
 fileprivate let logger = Logger(subsystem: "UI", category: "ImageGallrey")
 
 public struct ImagesGallaryProgressView: View {
@@ -75,15 +23,25 @@ public struct ImagesGallaryProgressView: View {
     }
     
     public var body: some View {
-        ZStack {
+//        ZStack {
+//            ImagesGallaryWrapper(images: images, selectedImage: startSelectedImage, attached: { _, _ in }, events: events, tapBackIcon: tapBackIcon)
+//                .opacity(animateProgress >= 1.0 ? 1:0)
+//            
+//            if images.count > 0, animateProgress < 1.0 {
+//                URLImage(startSelectedImage < images.endIndex ? images[startSelectedImage].url:images.first!.url) { image in
+//                    image.resizable()
+//                        .aspectRatio(contentMode: .fit)
+//                }
+//            }
+//        }
+        if animateProgress >= 1 {
             ImagesGallaryWrapper(images: images, selectedImage: startSelectedImage, attached: { _, _ in }, events: events, tapBackIcon: tapBackIcon)
-                .opacity(animateProgress >= 1.0 ? 1:0)
-            
-            if images.count > 0, animateProgress < 1.0 {
+        } else {
+            if images.count > 0 {
                 URLImage(startSelectedImage < images.endIndex ? images[startSelectedImage].url:images.first!.url) { image in
                     image.resizable()
                         .aspectRatio(contentMode: .fit)
-                }
+                }                
             }
         }
     }
@@ -113,7 +71,7 @@ public struct ImagesGallaryWrapper<Content: View>: View {
     @StateObject private var model: GallrayViewModel
     @State private var offset: Double
     @State private var deviceOrientationChange = false
-    @State private var currentImage: GallrayViewModel.Item?
+//    @State private var currentImage: GallrayViewModel.Item?
     private var startSelectedImage: Int
     private var startImages: [ImageProvider]
     @Environment(\.galleryOptions) private var galleryOptions
@@ -133,7 +91,7 @@ public struct ImagesGallaryWrapper<Content: View>: View {
         viewModel.move(to: selectedImage)
         self._model = StateObject(wrappedValue: viewModel)
         self.offset = viewModel.unionOffset.x
-        self.currentImage = viewModel.currentImage
+//        self.currentImage = viewModel.currentImage
         self.tapBackIcon = tapBackIcon
         self.events = events
         self.attachedView = attached
@@ -146,12 +104,17 @@ public struct ImagesGallaryWrapper<Content: View>: View {
         GeometryReader { proxy in
             LazyHStack(alignment: .center, spacing: 0) {
                 ForEach(model.images, id: \.url) { image in
-                    ImageNodeView(item: image, attachView: { item, discription in
-                        attachedView(item.metadata, discription)
-                    })
-                    .frame(width: proxy.size.width, height: proxy.size.height)
+                    if model.isDipslayWindow(image) {
+                        ImageNodeView(item: image, attachView: { item, discription in
+                            attachedView(item.metadata, discription)
+                        })
+                        .frame(width: proxy.size.width, height: proxy.size.height)
+                        .zIndex(image.url == model.currentImage?.url ? 1:0)
+                    } else {
+                        Color.clear.frame(width: proxy.size.width, height: proxy.size.height)
+                    }
                     //                    .opacity(image.url == currentImage?.url ? 1.0:0.6)
-                    .zIndex(image.url == currentImage?.url ? 100:0)
+//                    .zIndex(image.url == currentImage?.url ? 100:0)
                 }
             }
             .background(content: {
@@ -217,15 +180,19 @@ public struct ImagesGallaryWrapper<Content: View>: View {
                     }
             )
             .onChange(of: model.unionOffset) { newValue in
-                let x = newValue.x
+                let x = floor(newValue.x)
                 let update = offset != x
                 guard update else {
                     return
                 }
-                withAnimation(.spring().speed(1.5)) {
+                withAnimation(.smooth) {
                     offset = x
                 }
             }
+            .onChange(of: model.page, perform: { newValue in
+                let item = model.images[newValue]
+                events?(.moveToPage(item.metadata))
+            })
 #if os(iOS) || os(tvOS) || os(watchOS)
             .onReceive(NotificationCenter.default.publisher(for: UIDevice.orientationDidChangeNotification), perform: { _ in
                 deviceOrientationChange.toggle()
@@ -236,17 +203,6 @@ public struct ImagesGallaryWrapper<Content: View>: View {
                 model.reset()
                 if let image = model.currentImage {
                     events?(.deviceOrientationChange(image.metadata))
-                }
-            })
-            .onChange(of: model.unionOffset, perform: { newValue in
-                let page = model.indexOf(model.predictPageableOffset(newValue).x)
-                guard model.images.startIndex <= page, page < model.images.endIndex else {
-                    return
-                }
-                let image = model.images[page]
-                events?(.moveToPage(image.metadata))
-                withAnimation(.smooth) {
-                    currentImage = image
                 }
             })
         }

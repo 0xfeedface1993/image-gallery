@@ -116,6 +116,7 @@ public struct ScreenOutGeometryModifier<V: View, Q: Hashable>: ViewModifier {
             .namespaceTag(NameCoordinateSpace.value(namespace))
             .environment(\.screenOutCoordinateSpace, .value(namespace))
             .environmentObject(shareSatate)
+            .navigationBarBackportHidden(internalID != nil)
             .task {
                 internalID = activeID
             }

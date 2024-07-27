@@ -98,7 +98,7 @@ struct ZoomingView<Content: View>: View {
             return
         }
         
-        withAnimation(.spring().speed(1.5)) {
+        withAnimation(.smooth) {
             if updatePosition {
                 unionPosition = center
             }

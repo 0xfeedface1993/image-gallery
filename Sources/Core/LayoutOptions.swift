@@ -8,8 +8,70 @@
 import Foundation
 import ChainBuilder
 import OSLog
+import SwiftUI
 
-fileprivate let logger = Logger(subsystem: "Enviroments", category: "EnvironmentValues")
+public protocol ImageProvider {
+    var url: URL { get }
+}
+
+extension URL: ImageProvider {
+    public var url: URL {
+        self
+    }
+}
+
+public enum UserGestureState {
+    case start
+    case change
+    case end
+}
+
+package enum UserAction {
+    case tap(location: Point, layoutOptions: LayoutOptions)
+    case doubleTap(location: Point)
+    case doubleTapOutside
+    case drag(translation: Size, state: UserGestureState, layoutOptions: LayoutOptions)
+    case scale(location: Point, magnification: Double, state: UserGestureState, layoutOptions: LayoutOptions)
+    case rotate(location: Point, angle: Angle, state: UserGestureState, layoutOptions: LayoutOptions)
+    case move(Size)
+}
+
+public struct GestureEvent {
+    public let item: ImageProvider
+    public let states: [StateChange]
+    
+    package init(item: ImageProvider, states: [StateChange]) {
+        self.item = item
+        self.states = states
+    }
+}
+
+extension GestureEvent {
+    public enum Gesture {
+        case scale(Double)
+        case rotate(Angle)
+        case move(CGSize)
+    }
+    
+    public struct StateChange {
+        public let change: Gesture
+        public let state: UserGestureState
+        
+        package init(change: Gesture, state: UserGestureState) {
+            self.change = change
+            self.state = state
+        }
+    }
+}
+
+public enum Events {
+    case tap(ImageProvider?)
+    case doubleTap(ImageProvider)
+    case gestures(GestureEvent)
+    case deviceOrientationChange(ImageProvider)
+    case moveToPage(ImageProvider)
+}
+
 
 @ChainBuiler
 public struct LayoutOptions: Equatable {
@@ -67,34 +129,8 @@ extension LayoutOptions {
         
         public static let `default` = ScaleLevelOptions(max: 2.0, min: 0.8)
         
-        func control(_ value: Double) -> Double {
+        package func control(_ value: Double) -> Double {
             Swift.max(Swift.min(value, self.max), self.min)
         }
-    }
-}
-
-import SwiftUI
-
-public struct LayoutOptionsKey: EnvironmentKey {
-    public static var defaultValue = LayoutOptions(capability: .all, scaleLevel: .default, rotateMode: .bounce, dragMode: .bounce, panelEnable: true)
-}
-
-extension EnvironmentValues {
-    public var galleryOptions: LayoutOptions {
-        set { self[LayoutOptionsKey.self] = newValue }
-        get { self[LayoutOptionsKey.self] }
-    }
-}
-
-public struct EvnentsKey: EnvironmentKey {
-    public static var defaultValue: (Events) -> Void = { _ in
-        logger.warning("default EvnentsKey value")
-    }
-}
-
-extension EnvironmentValues {
-    public var events: (Events) -> Void {
-        set { self[EvnentsKey.self] = newValue }
-        get { self[EvnentsKey.self] }
     }
 }
