@@ -42,6 +42,7 @@ struct ZoomingView<Content: View>: View {
     var body: some View {
         GeometryReader(content: { geometry in
             imageView
+                .environment(\.urlImageOptions, .init(loadOptions: [.loadImmediately], loadingAnimated: false))
                 .overlayed({
                     attachView(model, LayoutParameter(imageSize, window: geometry.size.size).restore(model.unionState))
                 })
@@ -98,7 +99,7 @@ struct ZoomingView<Content: View>: View {
             return
         }
         
-        withAnimation(.smooth) {
+        withAnimation(.spring().speed(1.2)) {
             if updatePosition {
                 unionPosition = center
             }

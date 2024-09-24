@@ -20,11 +20,20 @@ struct ScreenOutGeometryProgressModifier<V: View>: ViewModifier, Animatable {
         get { progress }
         set { progress = newValue }
     }
+    
+    init(progress: Double, bounds: CGRect, @ViewBuilder viewBuilder: @escaping () -> V, sourceFrame: CGRect, targetFrame: CGRect, onTap: @escaping () -> Void) {
+        self.progress = progress
+        self.bounds = bounds
+        self.viewBuilder = viewBuilder
+        self.sourceFrame = sourceFrame
+        self.targetFrame = targetFrame
+        self.onTap = onTap
+    }
 
     func body(content: Content) -> some View {
         content
-            .overlay(content: {
-                if progress > 0.0001 {
+            .overlay {
+//                if progress > 0.0001 {
                     viewBuilder()
                         .onTapGesture(perform: onTap)
                         .modifier(
@@ -33,14 +42,14 @@ struct ScreenOutGeometryProgressModifier<V: View>: ViewModifier, Animatable {
                                                             sourceFrame: sourceFrame,
                                                             targetFrame: targetFrame)
                         )
-                }
-            })
+//                }
+            }
     }
 }
 
 extension View {
     @ViewBuilder
-    func navigationBarBackportHidden(_ hidden: Bool) -> some View {
+    public func navigationBarBackportHidden(_ hidden: Bool) -> some View {
 #if os(iOS) || os(watchOS) || os(visionOS)
         if #available(iOS 18.0, *) {
             toolbarVisibility(hidden ? .hidden:.visible, for: .navigationBar)
@@ -55,11 +64,11 @@ extension View {
         }
 #elseif os(macOS)
         if #available(macOS 15.0, *) {
-            toolbarVisibility(hidden ? .hidden:.visible, for: .windowToolbar)
+            toolbarVisibility(hidden ? .hidden:.visible, for: .automatic)
         } else {
             // Fallback on earlier versions
             if #available(macOS 13.0, *) {
-                toolbar(hidden ? .hidden:.visible, for: .windowToolbar)
+                toolbar(hidden ? .hidden:.visible, for: .automatic)
             } else {
                 // Fallback on earlier versions
                 self
@@ -75,6 +84,7 @@ struct ScreenOutGeometryEmbeedModifier: ViewModifier, Animatable {
     var sourceFrame: CGRect
     var targetFrame: CGRect
     @Environment(\.galleryOptions) private var galleryOptions
+    @Environment(\.screenOutCoordinateSpace) private var screenOutCoordinateSpace
     
     var animatableData: Double {
         get { progress }
@@ -83,17 +93,17 @@ struct ScreenOutGeometryEmbeedModifier: ViewModifier, Animatable {
 
     func body(content: Content) -> some View {
         ZStack(alignment: .center) {
-            Color.black.opacity(progress).ignoresSafeArea()
+            Color.black.ignoresSafeArea().opacity(progress)
             
             content
                 .frame(width: sourceFrame.width + (targetFrame.width - sourceFrame.width) * progress, height: bounds.height)
                 .offset(x: sourceFrame.origin.x + (targetFrame.origin.x - sourceFrame.origin.x) * progress,
                         y: sourceFrame.origin.y + (targetFrame.origin.y - sourceFrame.origin.y) * progress)
-                .environment(\.animateProgress, animatableData)
 //                .frame(width: sourceFrame.width,
 //                       height: sourceFrame.height)
-//                .offset(x: sourceFrame.origin.x,
-//                        y: sourceFrame.origin.y)
+//                .position(x: sourceFrame.origin.x,
+//                          y: sourceFrame.origin.y)
+                .environment(\.animateProgress, progress)
 //                .frame(width: targetFrame.width,
 //                       height: targetFrame.height)
 //                .offset(x: targetFrame.origin.x,

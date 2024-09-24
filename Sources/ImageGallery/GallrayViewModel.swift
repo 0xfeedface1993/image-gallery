@@ -194,12 +194,12 @@ extension GallrayViewModel {
         let url: URL
         
         convenience init(url: URL) {
-            let base = NormalizedLayoutState(center: .center, rotationAngle: .zero, factor: 1.0)
+            let base = NormalizedLayoutState(center: .center, rotationAngle: .zero, factor: 1.0, isGestureEnable: false)
             self.init(state: base, unionState: base, imageSize: .default, layoutUpdate: false, metadata: url, url: url)
         }
         
         convenience init(metadata: ImageProvider) {
-            let base = NormalizedLayoutState(center: .center, rotationAngle: .zero, factor: 1.0)
+            let base = NormalizedLayoutState(center: .center, rotationAngle: .zero, factor: 1.0, isGestureEnable: false)
             self.init(state: base, unionState: base, imageSize: .default, layoutUpdate: false, metadata: metadata, url: metadata.url)
         }
         
@@ -274,16 +274,32 @@ extension GallrayViewModel {
         }
     }
     
-    func isDipslayWindow(_ image: Item) -> Bool {
+    func isDipslayWindow(_ image: Item, progress: Double) -> Bool {
         let images = self.images
+        let page = self.page
         guard let index = images.firstIndex(where: { $0.url == image.url }) else {
+            return false
+        }
+        
+        if index == page {
+            return true
+        }
+        
+        if progress < 1.0 {
             return false
         }
         
         let beforeIndex = max(images.index(before: page), images.indices.lowerBound)
         let afterIndex = min(images.index(after: page), images.indices.upperBound)
         
-        return beforeIndex <= index && index <= afterIndex
+        let display = beforeIndex <= index && index <= afterIndex
+        if display {
+            logger.info("index \(index) diplayed, current page \(page)")
+        }   else    {
+            logger.info("index \(index) not displayed, current page \(page), valid range \(beforeIndex) <= index <= \(afterIndex)")
+        }
+        
+        return display
     }
 }
 

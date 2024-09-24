@@ -167,7 +167,7 @@ public struct NormalizedLayoutState: Equatable {
     /// 缩放系数
     public var factor: Double
     
-    public static let `default` = Self(center: .center, rotationAngle: .zero, factor: 1.0)
+    public static let `default` = Self(center: .center, rotationAngle: .zero, factor: 1.0, isGestureEnable: false)
     
     public func frame(with imageSize: Size) -> Rects {
         let bounds = bounds(with: imageSize)
@@ -186,13 +186,83 @@ public struct NormalizedLayoutState: Equatable {
         imageSize.scale(factor / max(imageSize.width, imageSize.height)).rotate(rotationAngle)
     }
     
-    public var isScaled: Bool {
-        factor > 1
+    public var isGestureEnable: Bool
+    
+    public func relativeScreenFactor(_ imageSize: Size, in size: Size) -> Double {
+        let fittingFactor = imageSize.fitting(size)
+        return factor / fittingFactor
     }
 }
 
+package extension CGSize {
+    func normalized(in size: CGSize) -> CGSize {
+        CGSize(width: width / size.width, height: height / size.height)
+    }
+    
+    func fitting(_ parentSize: CGSize) -> CGFloat {
+        let normalized = self.normalized(in: parentSize)
+        guard !normalized.width.isNaN, !normalized.height.isNaN, normalized.width > 0, normalized.height > 0 else {
+            return .zero
+        }
+        return 1 / max(normalized.width, normalized.height)
+    }
+    
+    func shrink(in size: CGSize) -> CGSize {
+        scaled(fitting(size))
+    }
+    
+    func move(_ offset: CGSize) -> CGSize {
+        CGSize(width: width + offset.width, height: height + offset.height)
+    }
+}
+
+package extension CGPoint {
+    @inlinable
+    func offset(_ translation: CGSize) -> CGPoint {
+        CGPoint(x: x + translation.width, y: y + translation.height)
+    }
+    
+    var point: Point {
+        Point(x: x, y: y)
+    }
+}
+
+package extension CGSize {
+    var size: Size {
+        Size(width: width, height: height)
+    }
+}
+
+package extension Size {
+    func scaled(_ value: Double) -> Self {
+        cgValue.scaled(value).size
+    }
+    
+    func fitting(_ parentSize: Size) -> Double {
+        cgValue.fitting(parentSize.cgValue)
+    }
+    
+    func normalized(in size: Size) -> Size {
+        Size(width: width / size.width, height: height / size.height)
+    }
+}
+
+extension CGSize {
+    func scaled(_ value: CGFloat) -> Self {
+        applying(.scaled(value))
+    }
+}
+
+extension CGAffineTransform {
+    static func scaled(_ value: CGFloat) -> Self {
+        .init(scaleX: value, y: value)
+    }
+}
+
+
 package final class GestureShareState: ObservableObject {
-    @Published package var current = NormalizedLayoutState(center: .center, rotationAngle: .zero, factor: 1)
+//    @Published package var current = NormalizedLayoutState(center: .center, rotationAngle: .zero, factor: 1, isGestureEnable: false)
+    @Published package var isDismissEnable = false
     
     package init() {
         
@@ -276,7 +346,8 @@ struct ImageFrameModifier<T: Hashable>: ViewModifier {
     func body(content: Content) -> some View {
         content.background {
             GeometryReader { proxy in
-                Color.clear.preference(key: ImageFrameKey.self, value: [geometryID: proxy.frame(in: .named(screenOutCoordinateSpace))])
+//                Color.clear.preference(key: ImageFrameKey.self, value: [geometryID: proxy.frame(in: .named(screenOutCoordinateSpace))])
+                Color.clear.preference(key: ImageFrameKey.self, value: [geometryID: proxy.frame(in: .global)])
             }
         }
     }

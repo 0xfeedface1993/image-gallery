@@ -102,27 +102,23 @@ public struct ImagesGallaryWrapper<Content: View>: View {
     public var body: some View {
 //        let _ = Self._printChanges()
         GeometryReader { proxy in
-            LazyHStack(alignment: .center, spacing: 0) {
+            HStack(alignment: .center, spacing: 0) {
                 ForEach(model.images, id: \.url) { image in
-                    if model.isDipslayWindow(image) {
+                    if animateProgress >= 1.0 || model.isDipslayWindow(image, progress: animateProgress) {
                         ImageNodeView(item: image, attachView: { item, discription in
                             attachedView(item.metadata, discription)
                         })
                         .frame(width: proxy.size.width, height: proxy.size.height)
-                        .zIndex(image.url == model.currentImage?.url ? 1:0)
                     } else {
                         Color.clear.frame(width: proxy.size.width, height: proxy.size.height)
                     }
-                    //                    .opacity(image.url == currentImage?.url ? 1.0:0.6)
-//                    .zIndex(image.url == currentImage?.url ? 100:0)
                 }
             }
             .background(content: {
                 coverBackgroundColor.ignoresSafeArea()
             })
             .frame(width: proxy.size.width * CGFloat(max(model.images.count, 1)))
-            .offset(x: proxy.size.width * offset)
-//            .preference(key: ScreenOutControlKey.self, value: enableScreenOut)
+            .offset(x: floor(proxy.size.width * offset))
             .gesture(
                 TapGesture()
                     .onEnded({ location in
@@ -141,11 +137,11 @@ public struct ImagesGallaryWrapper<Content: View>: View {
                         )
                         
                         let current = model.currentImage
-                        updateScreenOut(current)
-                        
                         guard let current else {
                             return
                         }
+                        
+                        updateScreenOut(current, layouts: LayoutParameter(current.imageSize, window: proxy.size.size))
                             
                         events?(
                             .gestures(
@@ -164,11 +160,12 @@ public struct ImagesGallaryWrapper<Content: View>: View {
                         )
                         
                         let current = model.currentImage
-                        updateScreenOut(current)
                         
                         guard let current else {
                             return
                         }
+                        
+                        updateScreenOut(current, layouts: LayoutParameter(current.imageSize, window: proxy.size.size))
                         
                         events?(
                             .gestures(
@@ -180,12 +177,16 @@ public struct ImagesGallaryWrapper<Content: View>: View {
                     }
             )
             .onChange(of: model.unionOffset) { newValue in
-                let x = floor(newValue.x)
+                let x = newValue.x
                 let update = offset != x
                 guard update else {
                     return
                 }
-                withAnimation(.smooth) {
+                if abs(modf(x).1) <= (1 / proxy.size.width) {
+                    withAnimation(.spring.speed(1.2)) {
+                        offset = x
+                    }
+                } else {
                     offset = x
                 }
             }
@@ -205,6 +206,12 @@ public struct ImagesGallaryWrapper<Content: View>: View {
                     events?(.deviceOrientationChange(image.metadata))
                 }
             })
+            .environment(\.events, { value in
+                if let item = model.currentImage {
+                    updateScreenOut(item, layouts: LayoutParameter(item.imageSize, window: proxy.size.size))
+                }
+                events?(value)
+            })
         }
         .overlayed {
             if animateProgress >= 1, galleryOptions.panelEnable {
@@ -213,21 +220,19 @@ public struct ImagesGallaryWrapper<Content: View>: View {
                 })
             }
         }
-        .environment(\.events, { value in
-            updateScreenOut(model.currentImage)
-            events?(value)
-        })
     }
     
-    private func updateScreenOut(_ item: GallrayViewModel.Item?) {
+    private func updateScreenOut(_ item: GallrayViewModel.Item?, layouts: LayoutParameter) {
         guard let item else {
             return
         }
-        let next = item.unionState.factor > 1
-        guard sharedState.current.isScaled != next else {
+        
+        let fittingFactor = layouts.originSize.fitting(layouts.parentSize)
+        let enable = item.unionState.factor / fittingFactor <= 1
+        guard sharedState.isDismissEnable != enable else {
             return
         }
-        sharedState.current = item.unionState
+        sharedState.isDismissEnable = enable
     }
 }
 

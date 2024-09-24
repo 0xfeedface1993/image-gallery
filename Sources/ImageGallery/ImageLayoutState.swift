@@ -152,23 +152,6 @@ package struct ImageComposer {
     }
 }
 
-extension CGPoint {
-    @inlinable
-    func offset(_ translation: CGSize) -> CGPoint {
-        CGPoint(x: x + translation.width, y: y + translation.height)
-    }
-    
-    var point: Point {
-        Point(x: x, y: y)
-    }
-}
-
-extension CGSize {
-    var size: Size {
-        Size(width: width, height: height)
-    }
-}
-
 extension CGImage {
     var size: Size {
         Size(width: Double(width), height: Double(height))
@@ -180,49 +163,3 @@ extension GeometryProxy {
         .init(x: size.width / 2.0, y: size.height / 2.0)
     }
 }
-
-extension CGSize {
-    func normalized(in size: CGSize) -> CGSize {
-        CGSize(width: width / size.width, height: height / size.height)
-    }
-    
-    func fitting(_ parentSize: CGSize) -> CGFloat {
-        let normalized = self.normalized(in: parentSize)
-        return 1 / max(normalized.width, normalized.height)
-    }
-    
-    func shrink(in size: CGSize) -> CGSize {
-        scaled(fitting(size))
-    }
-    
-    func move(_ offset: CGSize) -> CGSize {
-        CGSize(width: width + offset.width, height: height + offset.height)
-    }
-}
-
-extension Size {
-    func scaled(_ value: Double) -> Self {
-        cgValue.scaled(value).size
-    }
-    
-    func fitting(_ parentSize: Size) -> Double {
-        cgValue.fitting(parentSize.cgValue)
-    }
-    
-    func normalized(in size: Size) -> Size {
-        Size(width: width / size.width, height: height / size.height)
-    }
-}
-
-extension CGSize {
-    func scaled(_ value: CGFloat) -> Self {
-        applying(.scaled(value))
-    }
-}
-
-extension CGAffineTransform {
-    static func scaled(_ value: CGFloat) -> Self {
-        .init(scaleX: value, y: value)
-    }
-}
-

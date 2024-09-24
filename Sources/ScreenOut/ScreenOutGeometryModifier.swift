@@ -25,9 +25,10 @@ public struct ScreenOutGeometryModifier<V: View, Q: Hashable>: ViewModifier {
     @State private var targetFrame: CGRect = .zero
     var targetBuilder: (Q) -> V
     @Namespace private var namespace
-    private let smoothAnimate = Animation.smooth(duration: 0.35)
+    private let smoothAnimate = Animation.spring().speed(1.2)
     @StateObject private var shareSatate = GestureShareState()
     @State private var bounds = CGRect.zero
+    @State private var navigationBar: Bool = false
     
     public init(activeID: Binding<Q?>, @ViewBuilder targetBuilder: @escaping (Q) -> V) {
         self._activeID = activeID
@@ -38,7 +39,9 @@ public struct ScreenOutGeometryModifier<V: View, Q: Hashable>: ViewModifier {
         content
             .background(content: {
                 GeometryReader { proxy in
-                    Color.clear.preference(key: PresentedContentSizeKey.self, value: proxy.frame(in: .named(NameCoordinateSpace.value(namespace))))
+                    Color.clear
+//                        .preference(key: PresentedContentSizeKey.self, value: proxy.frame(in: .named(NameCoordinateSpace.value(namespace))))
+                        .preference(key: PresentedContentSizeKey.self, value: proxy.frame(in: .global))
                 }
             })
             .onPreferenceChange(PresentedContentSizeKey.self, perform: { newValue in
@@ -54,9 +57,7 @@ public struct ScreenOutGeometryModifier<V: View, Q: Hashable>: ViewModifier {
                                                   bounds: bounds,
                                                   viewBuilder: {
                                                       if let internalID {
-                                                          AnyView(targetBuilder(internalID))
-                                                      } else {
-                                                          AnyView(EmptyView())
+                                                          targetBuilder(internalID)
                                                       }
                                                   },
                                                   sourceFrame: sourceFrame,
@@ -71,6 +72,7 @@ public struct ScreenOutGeometryModifier<V: View, Q: Hashable>: ViewModifier {
                     internalAnimate(to: 0, updateID: true, id: nil)
                     return
                 }
+                let bounds = self.bounds
                 frame.origin.x = frame.midX - bounds.midX
                 frame.origin.y = frame.midY - bounds.midY
                 sourceFrame = frame
@@ -98,7 +100,7 @@ public struct ScreenOutGeometryModifier<V: View, Q: Hashable>: ViewModifier {
                     if abs(velocity) > 500, abs(offset) > 100 {
                         activeID = nil
                     }
-                }), isEnabled: !shareSatate.current.isScaled)
+                }), isEnabled: shareSatate.isDismissEnable)
 //            .simultaneousGesture(
 //                DragGesture(minimumDistance: 0)
 //                    .onEnded({ state in
@@ -113,10 +115,21 @@ public struct ScreenOutGeometryModifier<V: View, Q: Hashable>: ViewModifier {
 //                        }
 //                    })
 //            )
-            .namespaceTag(NameCoordinateSpace.value(namespace))
-            .environment(\.screenOutCoordinateSpace, .value(namespace))
+//            .namespaceTag(NameCoordinateSpace.value(namespace))
+//            .environment(\.screenOutCoordinateSpace, .value(namespace))
             .environmentObject(shareSatate)
-            .navigationBarBackportHidden(internalID != nil)
+            .navigationBarBackportHidden(navigationBar)
+#if os(iOS)
+            .onChange(of: internalID, perform: { newValue in
+                if UIDevice.current.userInterfaceIdiom == .pad || UIDevice.current.userInterfaceIdiom == .mac {
+                    if navigationBar {
+                        navigationBar = false                        
+                    }
+                } else {
+                    navigationBar = newValue != nil
+                }
+            })
+#endif
             .task {
                 internalID = activeID
             }
@@ -124,7 +137,7 @@ public struct ScreenOutGeometryModifier<V: View, Q: Hashable>: ViewModifier {
     
     private func internalAnimate(to nextProgress: Double, updateID: Bool = false, id: Q? = nil) {
         if #available(iOS 17.0, macOS 14.0, *) {
-            withAnimation {
+            withAnimation(smoothAnimate) {
                 progress = nextProgress
                 if nextProgress > 0, internalID == nil {
                     internalID = id
@@ -132,6 +145,11 @@ public struct ScreenOutGeometryModifier<V: View, Q: Hashable>: ViewModifier {
             } completion: {
                 if updateID {
                     internalID = id
+                    if id == nil {
+                        shareSatate.isDismissEnable = false
+                    } else {
+                        shareSatate.isDismissEnable = true
+                    }
                 }
             }
         } else {
@@ -148,6 +166,11 @@ public struct ScreenOutGeometryModifier<V: View, Q: Hashable>: ViewModifier {
             Task {
                 try await Task.sleep(nanoseconds: 1_000_000_000)
                 internalID = id
+                if id == nil {
+                    shareSatate.isDismissEnable = false
+                } else {
+                    shareSatate.isDismissEnable = true
+                }
             }
         }
     }
