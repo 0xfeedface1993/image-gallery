@@ -55,14 +55,16 @@ struct ImageNodeView<Content: View>: View {
         
         let url = item.url
         
-        guard let image = store.getImage(url) else {
+        guard let image = await store.getImage(url) else {
             print("image [\(url)] cache is invalid")
             print("downloading [\(url)] ...")
-            let result = try await service.remoteImagePublisher(url, identifier: nil).asyncValue
-            print("got image size \(result.size)")
-            let ratio = result.cgImage.size.normalized(in: size)
-            item.imageSize = ratio
-            self.imageSize = result.cgImage.size
+            let result = service.remoteImagePublisher(url, identifier: nil)
+            for try await result in result {
+                print("got image size \(result.size)")
+                let ratio = result.cgImage.size.normalized(in: size)
+                item.imageSize = ratio
+                self.imageSize = result.cgImage.size
+            }
             return
         }
         
