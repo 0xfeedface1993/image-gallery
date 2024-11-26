@@ -92,15 +92,15 @@ public struct ScreenOutGeometryModifier<V: View, Q: Hashable>: ViewModifier {
                 logger.debug("\(text)")
                 internalAnimate(to: 1, updateID: true, id: newValue)
             }
-            .gesture(DragGesture(minimumDistance: 0)
-                .onEnded({ state in
-                    let velocity = state.velocity.height
-                    let offset = state.translation.height
-                    logger.debug("drag velocity \(velocity), offset \(offset)")
-                    if abs(velocity) > 500, abs(offset) > 100 {
-                        activeID = nil
-                    }
-                }), isEnabled: shareSatate.isDismissEnable)
+//            .gesture(DragGesture(minimumDistance: 0)
+//                .onEnded({ state in
+//                    let velocity = state.velocity.height
+//                    let offset = state.translation.height
+//                    logger.debug("drag velocity \(velocity), offset \(offset)")
+//                    if abs(velocity) > 500, abs(offset) > 100 {
+//                        activeID = nil
+//                    }
+//                }), isEnabled: shareSatate.isDismissEnable)
 //            .simultaneousGesture(
 //                DragGesture(minimumDistance: 0)
 //                    .onEnded({ state in

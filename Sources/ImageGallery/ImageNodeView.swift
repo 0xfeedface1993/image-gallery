@@ -48,14 +48,14 @@ struct ImageNodeView<Content: View>: View {
     }
     
     private func loadImage(_ size: Size) async throws {
-        guard let store = service.inMemoryStore else {
-            print("inMemoryStore is nil")
+        guard let store = service.fileStore else {
+            print("fileStore is nil")
             return
         }
         
         let url = item.url
         
-        guard let image = await store.getImage(url) else {
+        guard let image = try await store.getImage([.url(url)], maxPixelSize: nil)?.cgImage else {
             print("image [\(url)] cache is invalid")
             print("downloading [\(url)] ...")
             let result = service.remoteImagePublisher(url, identifier: nil)
