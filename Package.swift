@@ -3,6 +3,25 @@
 
 import PackageDescription
 
+private let isDebug = false
+
+let dependencies: [Package.Dependency]
+if isDebug {
+    dependencies = [
+        .package(url: "https://github.com/0xfeedface1993/ChainBuilder.git", from: "0.1.3"),
+        .package(path: "../async-system"),
+        .package(path: "../url-image-gif"),
+        .package(path: "../ImageGallery")
+    ]
+} else {
+    dependencies = [
+        .package(url: "https://github.com/0xfeedface1993/ChainBuilder.git", from: "0.1.3"),
+        .package(path: "https://github.com/0xfeedface1993/async-system.git"),
+        .package(path: "https://github.com/0xfeedface1993/url-image.git"),
+        .package(path: "https://github.com/0xfeedface1993/image-gallery.git")
+    ]
+}
+
 let package = Package(
     name: "ImageGallery",
     platforms: [.macOS(.v12), .iOS(.v15), .tvOS(.v13), .watchOS(.v6), .macCatalyst(.v13)],
@@ -12,12 +31,7 @@ let package = Package(
             name: "ImageGallery",
             targets: ["ImageGallery"]),
     ],
-    dependencies: [
-//        .package(url: "https://github.com/0xfeedface1993/url-image.git", branch: "main"),
-        .package(url: "https://github.com/0xfeedface1993/ChainBuilder.git", from: "0.1.3"),
-        .package(path: "../async-system"),
-        .package(path: "../url-image-gif")
-    ],
+    dependencies: dependencies,
     targets: [
         // Targets are the basic building blocks of a package, defining a module or a test suite.
         // Targets can depend on other targets in this package and products from dependencies.
