@@ -197,10 +197,10 @@ extension View {
     }
 }
 
-fileprivate struct PresentedContentSizeKey: PreferenceKey {
+fileprivate struct PresentedContentSizeKey: @MainActor PreferenceKey {
     static func reduce(value: inout CGRect, nextValue: () -> CGRect) {
         
     }
     
-    static var defaultValue: CGRect = .zero
+    @MainActor static var defaultValue: CGRect = .zero
 }

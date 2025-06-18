@@ -7,7 +7,7 @@
 
 import SwiftUI
 
-struct ScreenOutModifier: ViewModifier, Animatable {
+struct ScreenOutModifier: ViewModifier, @MainActor Animatable {
     let edge: Edge
     var progress: Double
     var bounds: CGRect
@@ -53,12 +53,12 @@ struct ScreenOutModifier: ViewModifier, Animatable {
     }
 }
 
-fileprivate struct PresentedContentSizeKey: PreferenceKey {
+fileprivate struct PresentedContentSizeKey: @MainActor PreferenceKey {
     static func reduce(value: inout CGRect, nextValue: () -> CGRect) {
         
     }
     
-    static var defaultValue: CGRect = .zero
+    @MainActor static var defaultValue: CGRect = .zero
 }
 
 extension AnyTransition {

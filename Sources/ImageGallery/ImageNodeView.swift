@@ -61,9 +61,9 @@ struct ImageNodeView<Content: View>: View {
             let result = service.remoteImagePublisher(url, identifier: nil)
             for try await result in result {
                 print("got image size \(result.size)")
-                let ratio = result.cgImage.size.normalized(in: size)
+                let ratio = await result.cgImage.size.normalized(in: size)
                 item.imageSize = ratio
-                self.imageSize = result.cgImage.size
+                self.imageSize = await result.cgImage.size
             }
             return
         }

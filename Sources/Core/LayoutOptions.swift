@@ -83,18 +83,18 @@ public struct LayoutOptions: Equatable {
 }
 
 extension LayoutOptions {
-    public struct Capability: Equatable, OptionSet {
+    public struct Capability: Equatable, OptionSet, Sendable {
         public var rawValue: UInt
         
         public init(rawValue: UInt) {
             self.rawValue = rawValue
         }
         
-        public static let scale = Capability(rawValue: 1)
-        public static let rotate = Capability(rawValue: 1 << 1)
-        public static let dragging = Capability(rawValue: 1 << 2)
+        public nonisolated static let scale = Capability(rawValue: 1)
+        public nonisolated static let rotate = Capability(rawValue: 1 << 1)
+        public nonisolated static let dragging = Capability(rawValue: 1 << 2)
         
-        public static let all = scale.union(rotate).union(dragging)
+        public nonisolated static let all = scale.union(rotate).union(dragging)
     }
     
     public enum RotateMode {
@@ -110,7 +110,7 @@ extension LayoutOptions {
 
 extension LayoutOptions {
     @ChainBuiler
-    public struct ScaleLevelOptions: Equatable {
+    public struct ScaleLevelOptions: Equatable, Sendable {
         /// 最大缩放系数
         private var _max: Double
         /// 最小缩放系数
@@ -127,7 +127,7 @@ extension LayoutOptions {
             set { _min = Swift.min(Swift.max(Swift.min(4, newValue), 0.1), _max) }
         }
         
-        public static let `default` = ScaleLevelOptions(max: 2.0, min: 0.8)
+        public nonisolated static let `default` = ScaleLevelOptions(max: 2.0, min: 0.8)
         
         package func control(_ value: Double) -> Double {
             Swift.max(Swift.min(value, self.max), self.min)

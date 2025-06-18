@@ -8,7 +8,7 @@
 import SwiftUI
 import Core
 
-struct ScreenOutGeometryProgressModifier<V: View>: ViewModifier, Animatable {
+struct ScreenOutGeometryProgressModifier<V: View>: ViewModifier, @MainActor Animatable {
     var progress: Double
     var bounds: CGRect
     var viewBuilder: () -> V
@@ -78,7 +78,7 @@ extension View {
     }
 }
 
-struct ScreenOutGeometryEmbeedModifier: ViewModifier, Animatable {
+struct ScreenOutGeometryEmbeedModifier: ViewModifier, @MainActor Animatable {
     var progress: Double
     var bounds: CGRect
     var sourceFrame: CGRect

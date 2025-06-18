@@ -7,7 +7,7 @@
 
 import SwiftUI
 
-struct ScreenOutProgressModifier<V: View>: ViewModifier, Animatable {
+struct ScreenOutProgressModifier<V: View>: ViewModifier, @MainActor Animatable {
     let edge: Edge
     var progress: Double
     var bounds: CGRect

@@ -113,10 +113,10 @@ public extension View {
     }
 }
 
-public struct ScreenOutControlKey: PreferenceKey {
+public struct ScreenOutControlKey: @MainActor PreferenceKey {
     public static func reduce(value: inout Value, nextValue: () -> Value) {
         
     }
     
-    public static var defaultValue: Bool = true
+    @MainActor public static var defaultValue: Bool = true
 }

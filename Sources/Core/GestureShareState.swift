@@ -68,11 +68,11 @@ public struct Rects: Equatable {
 
 extension Rects {
     @ChainBuiler
-    public struct Rect: Equatable {
+    public struct Rect: Equatable, Sendable {
         public let x: Double
         public let y: Double
         
-        public static let zero = Self(x: .zero, y: .zero)
+        public nonisolated static let zero = Self(x: .zero, y: .zero)
         
         init(_ point: CGPoint) {
             self.x = point.x
@@ -82,7 +82,7 @@ extension Rects {
 }
 
 @ChainBuiler
-public struct Point: Equatable, CustomStringConvertible {
+public struct Point: Equatable, CustomStringConvertible, Sendable {
     public var x: Double
     public var y: Double
     
@@ -90,8 +90,8 @@ public struct Point: Equatable, CustomStringConvertible {
         CGPoint(x: x, y: y)
     }
     
-    public static let zero = Point(x: .zero, y: .zero)
-    public static let center = Point(x: 0.5, y: 0.5)
+    public nonisolated static let zero = Point(x: .zero, y: .zero)
+    public nonisolated static let center = Point(x: 0.5, y: 0.5)
     
     public var description: String {
         "x: \(x), y: \(y)"
@@ -111,13 +111,13 @@ public extension Point {
 }
 
 @ChainBuiler
-public struct Size: Equatable {
+public struct Size: Equatable, Sendable {
     public var width: Double
     public var height: Double
     
-    public static let zero = Size(width: .zero, height: .zero)
-    public static let `default` = Size(width: 1.0, height: 1.0)
-    public static let unknown = Size(width: .greatestFiniteMagnitude, height: .greatestFiniteMagnitude)
+    public nonisolated static let zero = Size(width: .zero, height: .zero)
+    public nonisolated static let `default` = Size(width: 1.0, height: 1.0)
+    public nonisolated static let unknown = Size(width: .greatestFiniteMagnitude, height: .greatestFiniteMagnitude)
     
     public var cgValue: CGSize {
         CGSize(width: width, height: height)
@@ -159,7 +159,7 @@ public struct Size: Equatable {
 
 /// 归一化的图片绘制信息
 @ChainBuiler
-public struct NormalizedLayoutState: Equatable {
+public struct NormalizedLayoutState: Equatable, Sendable {
     /// 图片所在的中心点
     public var center: Point
     /// 图片旋转角度
@@ -167,7 +167,7 @@ public struct NormalizedLayoutState: Equatable {
     /// 缩放系数
     public var factor: Double
     
-    public static let `default` = Self(center: .center, rotationAngle: .zero, factor: 1.0, isGestureEnable: false)
+    public nonisolated static let `default` = Self(center: .center, rotationAngle: .zero, factor: 1.0, isGestureEnable: false)
     
     public func frame(with imageSize: Size) -> Rects {
         let bounds = bounds(with: imageSize)
@@ -331,8 +331,8 @@ extension EnvironmentValues {
 }
 #endif
 
-package struct ImageFrameKey: PreferenceKey {
-    package static var defaultValue = [AnyHashable: CGRect]()
+package struct ImageFrameKey: @MainActor PreferenceKey {
+    @MainActor package static var defaultValue = [AnyHashable: CGRect]()
     
     package static func reduce(value: inout [AnyHashable : CGRect], nextValue: () -> [AnyHashable : CGRect]) {
         value.merge(nextValue(), uniquingKeysWith: { $1 })
