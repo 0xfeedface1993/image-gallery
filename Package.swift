@@ -24,7 +24,7 @@ if isDebug {
 
 let package = Package(
     name: "ImageGallery",
-    platforms: [.macOS(.v15), .iOS(.v18)],
+    platforms: [.macOS(.v12), .iOS(.v15), .tvOS(.v13), .watchOS(.v6), .macCatalyst(.v13)],
     products: [
         // Products define the executables and libraries a package produces, making them visible to other packages.
         .library(
