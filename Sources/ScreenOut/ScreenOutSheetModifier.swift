@@ -113,6 +113,8 @@ public extension View {
     }
 }
 
+
+#if swift(>=6.2)
 public struct ScreenOutControlKey: @MainActor PreferenceKey {
     public static func reduce(value: inout Value, nextValue: () -> Value) {
         
@@ -120,3 +122,12 @@ public struct ScreenOutControlKey: @MainActor PreferenceKey {
     
     @MainActor public static var defaultValue: Bool = true
 }
+#else
+public struct ScreenOutControlKey: @preconcurrency PreferenceKey {
+    public static func reduce(value: inout Value, nextValue: () -> Value) {
+        
+    }
+    
+    @MainActor public static var defaultValue: Bool = true
+}
+#endif

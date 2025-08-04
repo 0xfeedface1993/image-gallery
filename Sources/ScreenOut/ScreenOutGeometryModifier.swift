@@ -197,6 +197,7 @@ extension View {
     }
 }
 
+#if swift(>=6.2)
 fileprivate struct PresentedContentSizeKey: @MainActor PreferenceKey {
     static func reduce(value: inout CGRect, nextValue: () -> CGRect) {
         
@@ -204,3 +205,13 @@ fileprivate struct PresentedContentSizeKey: @MainActor PreferenceKey {
     
     @MainActor static var defaultValue: CGRect = .zero
 }
+
+#else
+fileprivate struct PresentedContentSizeKey: @preconcurrency PreferenceKey {
+    static func reduce(value: inout CGRect, nextValue: () -> CGRect) {
+        
+    }
+    
+    @MainActor static var defaultValue: CGRect = .zero
+}
+#endif

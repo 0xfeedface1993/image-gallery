@@ -331,13 +331,22 @@ extension EnvironmentValues {
 }
 #endif
 
+#if swift(>=6.2)
 package struct ImageFrameKey: @MainActor PreferenceKey {
     @MainActor package static var defaultValue = [AnyHashable: CGRect]()
-    
     package static func reduce(value: inout [AnyHashable : CGRect], nextValue: () -> [AnyHashable : CGRect]) {
         value.merge(nextValue(), uniquingKeysWith: { $1 })
     }
 }
+#else
+package struct ImageFrameKey: @preconcurrency PreferenceKey {
+    @MainActor package static var defaultValue = [AnyHashable: CGRect]()
+    package static func reduce(value: inout [AnyHashable : CGRect], nextValue: () -> [AnyHashable : CGRect]) {
+        value.merge(nextValue(), uniquingKeysWith: { $1 })
+    }
+}
+#endif
+
 
 struct ImageFrameModifier<T: Hashable>: ViewModifier {
     @Environment(\.screenOutCoordinateSpace) var screenOutCoordinateSpace
