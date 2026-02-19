@@ -46,8 +46,8 @@ public struct ScreenOutGeometryModifier<V: View, Q: Hashable>: ViewModifier {
             })
             .onPreferenceChange(PresentedContentSizeKey.self, perform: { newValue in
                 bounds = newValue
-                let text = "content \(type(of: content)) bounds: \(newValue)"
-                logger.debug("\(text)")
+//                let text = "content \(type(of: content)) bounds: \(newValue)"
+//                logger.debug("\(text)")
             })
             .onPreferenceChange(ImageFrameKey.self) { newValue in
                 cachedFrames = newValue
