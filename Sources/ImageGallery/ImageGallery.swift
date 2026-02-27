@@ -1,234 +1,287 @@
 import SwiftUI
-import URLImageStore
 import URLImage
-import OSLog
 import Core
 import ScreenOut
+import ComposableArchitecture
 
-fileprivate let logger = Logger(subsystem: "UI", category: "ImageGallrey")
-
-public struct ImagesGallaryProgressView: View {
+public struct ImageGalleryView<Overlay: View>: View {
     public var images: [ImageProvider]
     public var startSelectedImage: Int
-    @Environment(\.animateProgress) private var animateProgress: Double
     public var events: ((Events) -> Void)?
     public var tapBackIcon: (() -> Void)?
-    @Namespace private var namespace
-    
-    public init(images: [ImageProvider], selectedImage: Int = 0, events: ((Events) -> Void)? = nil, tapBackIcon: (() -> Void)? = nil) {
+    private var overlayBuilder: (ImageProvider, ImageLayoutDiscription) -> Overlay
+
+    public init(images: [ImageProvider], selectedImage: Int = 0, events: ((Events) -> Void)? = nil, tapBackIcon: (() -> Void)? = nil, @ViewBuilder overlayBuilder: @escaping (ImageProvider, ImageLayoutDiscription) -> Overlay) {
         self.images = images
         self.tapBackIcon = tapBackIcon
         self.events = events
         self.startSelectedImage = selectedImage
+        self.overlayBuilder = overlayBuilder
     }
-    
+
     public var body: some View {
-//        ZStack {
-//            ImagesGallaryWrapper(images: images, selectedImage: startSelectedImage, attached: { _, _ in }, events: events, tapBackIcon: tapBackIcon)
-//                .opacity(animateProgress >= 1.0 ? 1:0)
-//            
-//            if images.count > 0, animateProgress < 1.0 {
-//                URLImage(startSelectedImage < images.endIndex ? images[startSelectedImage].url:images.first!.url) { image in
-//                    image.resizable()
-//                        .aspectRatio(contentMode: .fit)
-//                }
-//            }
-//        }
-        if animateProgress >= 1 {
-            ImagesGallaryWrapper(images: images, selectedImage: startSelectedImage, attached: { _, _ in }, events: events, tapBackIcon: tapBackIcon)
-        } else {
-            if images.count > 0 {
-                URLImage(startSelectedImage < images.endIndex ? images[startSelectedImage].url:images.first!.url) { image in
-                    image.resizable()
-                        .aspectRatio(contentMode: .fit)
-                }                
-            }
+        ImagesGallaryWrapper(images: images, selectedImage: startSelectedImage, attached: overlayBuilder, events: events, tapBackIcon: tapBackIcon)
+    }
+}
+
+public extension ImageGalleryView where Overlay == EmptyView {
+    init(images: [ImageProvider], selectedImage: Int = 0, events: ((Events) -> Void)? = nil, tapBackIcon: (() -> Void)? = nil) {
+        self.init(images: images, selectedImage: selectedImage, events: events, tapBackIcon: tapBackIcon) { _, _ in
+            EmptyView()
         }
     }
 }
 
-public struct ImagesGallaryView: View {
-    public var images: [ImageProvider]
-    public var startSelectedImage: Int
-    public var events: ((Events) -> Void)?
-    public var tapBackIcon: (() -> Void)?
-//    @EnvironmentObject private var sharedState: GestureShareState
-//    @StateObject private var defaultState = GestureShareState()
-    
-    public init(images: [ImageProvider], selectedImage: Int = 0, events: ((Events) -> Void)? = nil, tapBackIcon: (() -> Void)? = nil) {
-        self.images = images
-        self.tapBackIcon = tapBackIcon
-        self.events = events
-        self.startSelectedImage = selectedImage
-    }
-    
-    public var body: some View {
-        ImagesGallaryWrapper(images: images, selectedImage: startSelectedImage, attached: { _, _ in }, events: events, tapBackIcon: tapBackIcon)
-    }
-}
+@available(*, deprecated, renamed: "ImageGalleryView")
+public typealias ImagesGallaryView = ImageGalleryView<EmptyView>
 
 public struct ImagesGallaryWrapper<Content: View>: View {
-    @StateObject private var model: GallrayViewModel
-    @State private var offset: Double
-    @State private var deviceOrientationChange = false
-//    @State private var currentImage: GallrayViewModel.Item?
-    private var startSelectedImage: Int
-    private var startImages: [ImageProvider]
+    @State private var store: StoreOf<ImageGalleryFeature>
+    @State private var lastDoubleTapTime: TimeInterval = 0
+    @State private var lastIsPortrait: Bool?
+
     @Environment(\.galleryOptions) private var galleryOptions
     @Environment(\.coverBackgroundColor) private var coverBackgroundColor
     @Environment(\.animateProgress) private var animateProgress
-//    @State private var enableScreenOut: Bool = false
     @EnvironmentObject private var sharedState: GestureShareState
-    
-    private var attachedView: (ImageProvider, ImageLayoutDiscription) -> Content
-    
+
+    private let images: [ImageProvider]
+    private let attachedView: (ImageProvider, ImageLayoutDiscription) -> Content
+
     public var events: ((Events) -> Void)?
-    
     public var tapBackIcon: (() -> Void)?
-    
+
     public init(images: [ImageProvider], selectedImage: Int = 0, @ViewBuilder attached: @escaping (ImageProvider, ImageLayoutDiscription) -> Content, events: ((Events) -> Void)? = nil, tapBackIcon: (() -> Void)? = nil) {
-        let viewModel = GallrayViewModel(images)
-        viewModel.move(to: selectedImage)
-        self._model = StateObject(wrappedValue: viewModel)
-        self.offset = viewModel.unionOffset.x
-//        self.currentImage = viewModel.currentImage
-        self.tapBackIcon = tapBackIcon
+        self.images = images
         self.events = events
+        self.tapBackIcon = tapBackIcon
         self.attachedView = attached
-        self.startImages = images
-        self.startSelectedImage = selectedImage
+        _store = State(initialValue: Store(initialState: ImageGalleryFeature.State(imageCount: images.count, selectedIndex: selectedImage), reducer: {
+            ImageGalleryFeature()
+        }))
     }
-    
+
     public var body: some View {
-//        let _ = Self._printChanges()
-        GeometryReader { proxy in
-            HStack(alignment: .center, spacing: 0) {
-                ForEach(model.images, id: \.url) { image in
-                    if animateProgress >= 1.0 || model.isDipslayWindow(image, progress: animateProgress) {
-                        ImageNodeView(item: image, attachView: { item, discription in
-                            attachedView(item.metadata, discription)
-                        })
-                        .frame(width: proxy.size.width, height: proxy.size.height)
-                    } else {
-                        Color.clear.frame(width: proxy.size.width, height: proxy.size.height)
+        WithViewStore(store, observe: { $0 }) { viewStore in
+            GeometryReader { proxy in
+                let containerSize = proxy.size
+
+                ZStack(alignment: .center) {
+                    pagesView(viewStore: viewStore, containerSize: containerSize)
+                }
+                .frame(width: containerSize.width, height: containerSize.height)
+                .contentShape(Rectangle())
+                .gesture(dragGesture(viewStore: viewStore), including: .gesture)
+                .simultaneousGesture(magnifyGesture(viewStore: viewStore))
+                .modifier(
+                    GalleryTapGestureModifier(
+                        animateProgress: animateProgress,
+                        onSingleTap: {
+                            let now = Date().timeIntervalSinceReferenceDate
+                            guard now - lastDoubleTapTime > 0.25 else {
+                                return
+                            }
+                            viewStore.send(.tap)
+                            events?(.tap(currentImage(from: viewStore.state)))
+                        },
+                        onDoubleTap: { location in
+                            lastDoubleTapTime = Date().timeIntervalSinceReferenceDate
+                            viewStore.send(.doubleTap(location: location), animation: .spring(response: 0.28, dampingFraction: 0.85))
+                            if let image = currentImage(from: viewStore.state) {
+                                events?(.doubleTap(image))
+                            }
+                            updateDismissEnable(viewStore.state)
+                        }
+                    )
+                )
+                .onAppear {
+                    viewStore.send(.setContainerSize(containerSize))
+                    updateDismissEnable(viewStore.state)
+                    emitCurrentPageEvent(viewStore.state)
+                }
+                .onChange(of: containerSize) { newSize in
+                    viewStore.send(.setContainerSize(newSize))
+                    updateDismissEnable(viewStore.state)
+
+                    let portrait = newSize.height >= newSize.width
+                    if let lastIsPortrait, lastIsPortrait != portrait, let item = currentImage(from: viewStore.state) {
+                        events?(.deviceOrientationChange(item))
                     }
+                    lastIsPortrait = portrait
+                }
+                .onChange(of: viewStore.selectedIndex) { _ in
+                    emitCurrentPageEvent(viewStore.state)
+                    updateDismissEnable(viewStore.state)
+                }
+                .onChange(of: currentPageScale(in: viewStore.state)) { _ in
+                    updateDismissEnable(viewStore.state)
                 }
             }
-            .background(content: {
+            .background {
                 coverBackgroundColor.ignoresSafeArea()
-            })
-            .frame(width: proxy.size.width * CGFloat(max(model.images.count, 1)))
-            .offset(x: floor(proxy.size.width * offset))
-            .gesture(
-                TapGesture()
-                    .onEnded({ location in
-                        model.send(.tap(location: .zero, layoutOptions: galleryOptions))
-                        events?(.tap(model.currentImage?.metadata))
-                    })
-            )
-            .simultaneousGesture(
-                DragGesture(coordinateSpace: .local)
-                    .onChanged { value in
-                        guard galleryOptions.capability.contains(.dragging) else {
-                            return
+            }
+            .overlay(alignment: .top) {
+                if animateProgress == 1, galleryOptions.panelEnable {
+                    DefaultPanelView(
+                        currentPage: min(max(viewStore.selectedIndex + 1, 0), max(viewStore.pages.count, 1)),
+                        totalPages: max(viewStore.pages.count, 1),
+                        isVisible: viewStore.isPanelVisible,
+                        onTapBack: {
+                            tapBackIcon?()
                         }
-                        model.send(
-                            .drag(translation: proxy.size.size.normalized(value.translation.size), state: .change, layoutOptions: galleryOptions)
-                        )
-                        
-                        let current = model.currentImage
-                        guard let current else {
-                            return
-                        }
-                        
-                        updateScreenOut(current, layouts: LayoutParameter(current.imageSize, window: proxy.size.size))
-                            
-                        events?(
-                            .gestures(
-                                .init(item: current.metadata, states: [
-                                    .init(change: .move(.init(width: model.unionOffset.x, height: model.unionOffset.y)), state: .change)
-                                ])
-                            )
-                        )
+                    )
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func pagesView(viewStore: ViewStore<ImageGalleryFeature.State, ImageGalleryFeature.Action>, containerSize: CGSize) -> some View {
+        let safeWidth = max(containerSize.width, 1)
+        let safeHeight = max(containerSize.height, 1)
+
+        ZStack(alignment: .center) {
+            ForEach(Array(images.enumerated()), id: \.offset) { index, image in
+                let pageState = viewStore.pages[index]
+                let pageOffsetX = CGFloat(index - viewStore.selectedIndex) * safeWidth + viewStore.pageDragOffset
+
+                GalleryPageView(
+                    image: image,
+                    pageState: pageState,
+                    containerSize: CGSize(width: safeWidth, height: safeHeight),
+                    overlayBuilder: { layout in
+                        attachedView(image, layout)
+                    },
+                    onImageSize: { size in
+                        viewStore.send(.setImageSize(index: index, size: size))
+                    },
+                    onLoadingProgress: { progress in
+                        viewStore.send(.setImageLoading(index: index, progress: progress))
+                    },
+                    onLoaded: {
+                        viewStore.send(.markImageLoaded(index: index))
                     }
-                    .onEnded { value in
-                        guard galleryOptions.capability.contains(.dragging) else {
-                            return
-                        }
-                        model.send(
-                            .drag(translation: proxy.size.size.normalized(value.translation.size), state: .end, layoutOptions: galleryOptions)
-                        )
-                        
-                        let current = model.currentImage
-                        
-                        guard let current else {
-                            return
-                        }
-                        
-                        updateScreenOut(current, layouts: LayoutParameter(current.imageSize, window: proxy.size.size))
-                        
-                        events?(
-                            .gestures(
-                                .init(item: current.metadata, states: [
-                                    .init(change: .move(.init(width: model.unionOffset.x, height: model.unionOffset.y)), state: .end)
-                                ])
-                            )
-                        )
-                    }
-            )
-            .onChange(of: model.unionOffset) { newValue in
-                let x = newValue.x
-                let update = offset != x
-                guard update else {
+                )
+                .frame(width: safeWidth, height: safeHeight)
+                .offset(x: pageOffsetX)
+                .accessibilityIdentifier("ig.page.\(index)")
+            }
+        }
+        .frame(width: safeWidth, height: safeHeight, alignment: .center)
+        .clipped()
+    }
+
+    private func dragGesture(viewStore: ViewStore<ImageGalleryFeature.State, ImageGalleryFeature.Action>) -> some Gesture {
+        DragGesture(minimumDistance: 0, coordinateSpace: .local)
+            .onChanged { value in
+                guard animateProgress == 1,
+                      galleryOptions.capability.contains(.dragging) else {
                     return
                 }
-                if abs(modf(x).1) <= (1 / proxy.size.width) {
-                    withAnimation(.spring.speed(1.2)) {
-                        offset = x
-                    }
-                } else {
-                    offset = x
+                viewStore.send(.dragChanged(translation: value.translation))
+
+                if let current = currentImage(from: viewStore.state) {
+                    events?(
+                        .gestures(
+                            .init(item: current, states: [
+                                .init(change: .move(value.translation), state: .change)
+                            ])
+                        )
+                    )
                 }
             }
-            .onChange(of: model.page, perform: { newValue in
-                let item = model.images[newValue]
-                events?(.moveToPage(item.metadata))
-            })
-#if os(iOS) || os(tvOS) || os(watchOS)
-            .onReceive(NotificationCenter.default.publisher(for: UIDevice.orientationDidChangeNotification), perform: { _ in
-                deviceOrientationChange.toggle()
-            })
-#endif
-            .onChange(of: deviceOrientationChange, perform: { _ in
-                offset = Double(-model.page)
-                model.reset()
-                if let image = model.currentImage {
-                    events?(.deviceOrientationChange(image.metadata))
+            .onEnded { value in
+                guard animateProgress == 1,
+                      galleryOptions.capability.contains(.dragging) else {
+                    return
                 }
-            })
-            .environment(\.events, { value in
-                if let item = model.currentImage {
-                    updateScreenOut(item, layouts: LayoutParameter(item.imageSize, window: proxy.size.size))
+                viewStore.send(
+                    .dragEnded(
+                        translation: value.translation,
+                        predictedEndTranslation: value.predictedEndTranslation
+                    ),
+                    animation: .spring(response: 0.3, dampingFraction: 0.84)
+                )
+
+                if let current = currentImage(from: viewStore.state) {
+                    events?(
+                        .gestures(
+                            .init(item: current, states: [
+                                .init(change: .move(value.translation), state: .end)
+                            ])
+                        )
+                    )
                 }
-                events?(value)
-            })
-        }
-        .overlayed {
-            if animateProgress >= 1, galleryOptions.panelEnable {
-                DefaultPanelView(model: model, onTapBack: {
-                    tapBackIcon?()
-                })
             }
-        }
     }
-    
-    private func updateScreenOut(_ item: GallrayViewModel.Item?, layouts: LayoutParameter) {
-        guard let item else {
+
+    private func magnifyGesture(viewStore: ViewStore<ImageGalleryFeature.State, ImageGalleryFeature.Action>) -> some Gesture {
+        MagnificationGesture()
+            .onChanged { magnification in
+                guard animateProgress == 1,
+                      galleryOptions.capability.contains(.scale) else {
+                    return
+                }
+                viewStore.send(.magnifyChanged(magnification: magnification, anchor: nil))
+
+                if let current = currentImage(from: viewStore.state) {
+                    events?(
+                        .gestures(
+                            .init(item: current, states: [
+                                .init(change: .scale(magnification), state: .change)
+                            ])
+                        )
+                    )
+                }
+            }
+            .onEnded { magnification in
+                guard animateProgress == 1,
+                      galleryOptions.capability.contains(.scale) else {
+                    return
+                }
+                viewStore.send(.magnifyEnded, animation: .spring(response: 0.3, dampingFraction: 0.85))
+
+                if let current = currentImage(from: viewStore.state) {
+                    events?(
+                        .gestures(
+                            .init(item: current, states: [
+                                .init(change: .scale(magnification), state: .end)
+                            ])
+                        )
+                    )
+                }
+            }
+    }
+
+    private func emitCurrentPageEvent(_ state: ImageGalleryFeature.State) {
+        guard let current = currentImage(from: state) else {
             return
         }
-        
-        let fittingFactor = layouts.originSize.fitting(layouts.parentSize)
-        let enable = item.unionState.factor / fittingFactor <= 1
+        events?(.moveToPage(current))
+    }
+
+    private func currentImage(from state: ImageGalleryFeature.State) -> ImageProvider? {
+        guard images.indices.contains(state.selectedIndex) else {
+            return nil
+        }
+        return images[state.selectedIndex]
+    }
+
+    private func currentPageScale(in state: ImageGalleryFeature.State) -> CGFloat {
+        guard state.pages.indices.contains(state.selectedIndex) else {
+            return 1
+        }
+        return state.pages[state.selectedIndex].zoomScale
+    }
+
+    private func updateDismissEnable(_ state: ImageGalleryFeature.State) {
+        let enable: Bool
+        if state.pages.indices.contains(state.selectedIndex) {
+            enable = state.pages[state.selectedIndex].zoomScale <= 1.001
+        } else {
+            enable = true
+        }
+
         guard sharedState.isDismissEnable != enable else {
             return
         }
@@ -236,10 +289,228 @@ public struct ImagesGallaryWrapper<Content: View>: View {
     }
 }
 
-#Preview {
-    ImagesGallaryView(images: [
-        URL(string: "https://images.duanlndzi.bar/ecdb7c18e93fc76d336a787b7e357de5.jpg")!,
-        URL(string: "https://images.duanlndzi.bar/1f004901f2efc537f58733b2253ecb9e.jpg")!
-    ], selectedImage: 0)
-    .environment(\.urlImageService, URLImageService(fileStore: nil, inMemoryStore: URLImageInMemoryStore()))
+private struct GalleryTapGestureModifier: ViewModifier {
+    let animateProgress: Double
+    let onSingleTap: () -> Void
+    let onDoubleTap: (CGPoint?) -> Void
+
+    func body(content: Content) -> some View {
+        if #available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, *) {
+            content
+                .simultaneousGesture(
+                    SpatialTapGesture(count: 1)
+                        .onEnded { _ in
+                            guard animateProgress == 1 else {
+                                return
+                            }
+                            onSingleTap()
+                        }
+                )
+                .highPriorityGesture(
+                    SpatialTapGesture(count: 2)
+                        .onEnded { value in
+                            guard animateProgress == 1 else {
+                                return
+                            }
+                            onDoubleTap(value.location)
+                        },
+                    including: .gesture
+                )
+        } else {
+            content
+                .simultaneousGesture(
+                    TapGesture(count: 1)
+                        .onEnded {
+                            guard animateProgress == 1 else {
+                                return
+                            }
+                            onSingleTap()
+                        }
+                )
+                .highPriorityGesture(
+                    TapGesture(count: 2)
+                        .onEnded {
+                            guard animateProgress == 1 else {
+                                return
+                            }
+                            onDoubleTap(nil)
+                        },
+                    including: .gesture
+                )
+        }
+    }
+}
+
+private struct GalleryPageView<Overlay: View>: View {
+    let image: ImageProvider
+    let pageState: ImageGalleryFeature.State.PageState
+    let containerSize: CGSize
+    let overlayBuilder: (ImageLayoutDiscription) -> Overlay
+    let onImageSize: (CGSize) -> Void
+    let onLoadingProgress: (CGFloat?) -> Void
+    let onLoaded: () -> Void
+
+    private var fitSize: CGSize {
+        let source = resolvedSourceSize
+        guard source.width > 0,
+              source.height > 0,
+              containerSize.width > 0,
+              containerSize.height > 0 else {
+            return .zero
+        }
+        let scale = min(containerSize.width / source.width, containerSize.height / source.height)
+        return CGSize(width: source.width * scale, height: source.height * scale)
+    }
+
+    private var resolvedSourceSize: CGSize {
+        if pageState.sourceSize.width > 0, pageState.sourceSize.height > 0 {
+            return pageState.sourceSize
+        }
+        return containerSize
+    }
+
+    private var displaySize: CGSize {
+        CGSize(width: fitSize.width * pageState.zoomScale, height: fitSize.height * pageState.zoomScale)
+    }
+
+    private var layoutDescription: ImageLayoutDiscription {
+        let sourceSize = Size(width: resolvedSourceSize.width, height: resolvedSourceSize.height)
+        let center = Point(
+            x: containerSize.width / 2 + pageState.contentOffset.width,
+            y: containerSize.height / 2 + pageState.contentOffset.height
+        )
+
+        let minX = center.x - displaySize.width / 2
+        let minY = center.y - displaySize.height / 2
+        let maxX = center.x + displaySize.width / 2
+        let maxY = center.y + displaySize.height / 2
+
+        let frame = Rects(
+            topLeading: .init(x: minX, y: minY),
+            bottomLeading: .init(x: minX, y: maxY),
+            topTrailling: .init(x: maxX, y: minY),
+            bottomTrailling: .init(x: maxX, y: maxY)
+        )
+
+        return ImageLayoutDiscription(
+            center: center,
+            rotationAngle: .zero,
+            originSize: sourceSize,
+            factor: sourceSize.fitting(Size(width: containerSize.width, height: containerSize.height)) * pageState.zoomScale,
+            size: Size(width: displaySize.width, height: displaySize.height),
+            bounds: Size(width: displaySize.width, height: displaySize.height),
+            frame: frame
+        )
+    }
+
+    var body: some View {
+        ZStack {
+            Color.clear
+
+            imageContent
+                .frame(width: max(fitSize.width, 1), height: max(fitSize.height, 1))
+                .scaleEffect(pageState.zoomScale)
+                .offset(pageState.contentOffset)
+                .overlay {
+                    overlayBuilder(layoutDescription)
+                }
+        }
+        .frame(width: max(containerSize.width, 1), height: max(containerSize.height, 1))
+        .clipped()
+    }
+
+    @ViewBuilder
+    private var imageContent: some View {
+        if image.url.absoluteString.lowercased().contains(".gif") {
+            GIFImage(image.url) { } inProgress: { progress in
+                LoadingProgressView(progress: progress)
+                    .onAppear {
+                        onLoadingProgress(progress.map(CGFloat.init))
+                    }
+            } failure: { _, retry in
+                FailureRetryView(retry: retry)
+            } content: { loaded in
+                loaded
+                    .modifier(FadeInOnAppear())
+                    .onAppear {
+                        onLoaded()
+                    }
+            }
+        } else {
+            URLImage(
+                image.url,
+                inProgress: { progress in
+                    LoadingProgressView(progress: progress)
+                        .onAppear {
+                            onLoadingProgress(progress.map(CGFloat.init))
+                        }
+                },
+                failure: { _, retry in
+                    FailureRetryView(retry: retry)
+                },
+                content: { loaded, info in
+                    loaded
+                        .resizable()
+                        .scaledToFit()
+                        .modifier(FadeInOnAppear())
+                        .onAppear {
+                            onImageSize(info.size)
+                            onLoaded()
+                        }
+                }
+            )
+        }
+    }
+}
+
+private struct LoadingProgressView: View {
+    let progress: Float?
+
+    var body: some View {
+        VStack(spacing: 8) {
+            ProgressView()
+                .progressViewStyle(.circular)
+            if let progress {
+                ProgressView(value: Double(progress), total: 1)
+                    .progressViewStyle(.linear)
+                    .frame(width: 120)
+            }
+        }
+        .padding(12)
+        .background(Color.black.opacity(0.35), in: RoundedRectangle(cornerRadius: 10))
+    }
+}
+
+private struct FailureRetryView: View {
+    let retry: () -> Void
+
+    var body: some View {
+        Button(action: retry) {
+            VStack(spacing: 6) {
+                Image(systemName: "arrow.clockwise")
+                Text("Retry")
+                    .font(.caption)
+            }
+            .padding(12)
+            .foregroundStyle(.white)
+            .background(Color.black.opacity(0.45), in: RoundedRectangle(cornerRadius: 10))
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+private struct FadeInOnAppear: ViewModifier {
+    @State private var opacity = 0.0
+
+    func body(content: Content) -> some View {
+        content
+            .opacity(opacity)
+            .onAppear {
+                if opacity < 1 {
+                    withAnimation(.easeOut(duration: 0.18)) {
+                        opacity = 1
+                    }
+                }
+            }
+    }
 }

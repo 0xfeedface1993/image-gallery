@@ -200,11 +200,16 @@ package extension CGSize {
     }
     
     func fitting(_ parentSize: CGSize) -> CGFloat {
-        let normalized = self.normalized(in: parentSize)
-        guard !normalized.width.isNaN, !normalized.height.isNaN, normalized.width > 0, normalized.height > 0 else {
+        guard width > 0,
+              height > 0,
+              parentSize.width > 0,
+              parentSize.height > 0 else {
             return .zero
         }
-        return 1 / max(normalized.width, normalized.height)
+        // Photos-like preview: keep the whole image visible (aspectFit).
+        let widthScale = parentSize.width / width
+        let heightScale = parentSize.height / height
+        return min(widthScale, heightScale)
     }
     
     func shrink(in size: CGSize) -> CGSize {
@@ -354,9 +359,9 @@ struct ImageFrameModifier<T: Hashable>: ViewModifier {
 }
 
 public extension View {
+    @available(*, deprecated, message: "Use imageGallerySource(id:) from ImageGallery module.")
     @ViewBuilder
     func geometry<T: Hashable>(id: T) -> some View {
         modifier(ImageFrameModifier(geometryID: id))
     }
 }
-

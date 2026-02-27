@@ -1,28 +1,16 @@
-//
-//  SwiftUIView.swift
-//  
-//
-//  Created by sonoma on 7/6/24.
-//
-
 import SwiftUI
 
 struct DefaultPanelView: View {
-    @ObservedObject var model: GallrayViewModel
-    @State private var isDisplay: Bool
-    var onTapBack: () -> Void
-    
-    init(model: GallrayViewModel, onTapBack: @escaping () -> Void) {
-        self.model = model
-        self.onTapBack = onTapBack
-        self.isDisplay = model.isDefaultCoverDisplay
-    }
-    
+    let currentPage: Int
+    let totalPages: Int
+    let isVisible: Bool
+    let onTapBack: () -> Void
+
     var body: some View {
-        VStack(alignment: .center, spacing: 0) {
+        VStack(spacing: 0) {
             HStack {
                 Spacer()
-                Text("\(model.page + 1) / \(model.images.count)")
+                Text("\(max(currentPage, 1)) / \(max(totalPages, 1))")
                     .foregroundColor(.white)
                     .bold()
                 Spacer()
@@ -37,18 +25,14 @@ struct DefaultPanelView: View {
                 }
             }
             .background {
-                Color.black.ignoresSafeArea(edges: .top).opacity(0.5).onTapGesture {
-                    print("block tap")
-                }
+                Color.black.opacity(0.5).ignoresSafeArea(edges: .top)
             }
-            
+
             Spacer()
         }
-        .opacity(isDisplay ? 1.0:0)
-        .onChange(of: model.isDefaultCoverDisplay) { newValue in
-            withAnimation(.spring(blendDuration: 0.2).speed(1.5)) {
-                isDisplay = newValue
-            }
-        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .opacity(isVisible ? 1 : 0)
+        .allowsHitTesting(isVisible)
+        .animation(.easeInOut(duration: 0.2), value: isVisible)
     }
 }
