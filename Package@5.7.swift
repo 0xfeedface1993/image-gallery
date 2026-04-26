@@ -9,14 +9,14 @@ let dependencies: [Package.Dependency]
 if isDebug {
     dependencies = [
         .package(url: "https://github.com/0xfeedface1993/ChainBuilder.git", from: "0.1.3"),
-        .package(url: "https://github.com/pointfreeco/swift-composable-architecture", exact: "1.8.2"),
+        .package(path: "../swift-composable-architecture-patched"),
         .package(path: "../url-image-gif")
     ]
 } else {
     dependencies = [
         .package(url: "https://github.com/0xfeedface1993/ChainBuilder.git", from: "0.1.3"),
         .package(url: "https://github.com/pointfreeco/swift-composable-architecture", exact: "1.8.2"),
-        .package(path: "https://github.com/0xfeedface1993/url-image.git")
+        .package(url: "https://github.com/0xfeedface1993/url-image.git", branch: "release")
     ]
 }
 
@@ -49,7 +49,7 @@ let package = Package(
             name: "ImageGallery",
             dependencies: [
                 .target(name: "Core"),
-                .product(name: "ComposableArchitecture", package: "swift-composable-architecture"),
+                .product(name: "ComposableArchitecture", package: "swift-composable-architecture-patched"),
                 .product(name: "URLImage", package: "url-image-gif"),
                 .product(name: "URLImageStore", package: "url-image-gif"),
                 .target(name: "ScreenOut")

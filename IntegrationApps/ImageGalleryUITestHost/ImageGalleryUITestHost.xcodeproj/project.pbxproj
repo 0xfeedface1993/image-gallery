@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 77;
+	objectVersion = 63;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -28,7 +28,7 @@
 
 /* Begin PBXFileReference section */
 		048C98A382A98BCF5AD56E78 /* DemoPhoto.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DemoPhoto.swift; sourceTree = "<group>"; };
-		1273FFE8DA39DE49DA3292BC /* ImageGalleryUITestHost.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = ImageGalleryUITestHost.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		1273FFE8DA39DE49DA3292BC /* ImageGalleryUITestHost.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ImageGalleryUITestHost.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		317CE67A7A559A2152595A32 /* ImageGalleryUITestHostUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageGalleryUITestHostUITests.swift; sourceTree = "<group>"; };
 		50519B0A989715B2381DE63B /* ImageGalleryUITestHostUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = ImageGalleryUITestHostUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		561DBE73EA30CE6A625339A0 /* ImageGallery */ = {isa = PBXFileReference; lastKnownFileType = folder; name = ImageGallery; path = ../..; sourceTree = SOURCE_ROOT; };
@@ -166,7 +166,6 @@
 			packageReferences = (
 				0752EA5277C9ECE89842A38A /* XCLocalSwiftPackageReference "../..//" */,
 			);
-			preferredProjectObjectVersion = 77;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
@@ -214,7 +213,9 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGNING_ALLOWED = NO;
 				CODE_SIGNING_REQUIRED = NO;
-				CODE_SIGN_IDENTITY = "";
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = N39GRU244C;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = ImageGalleryUITestHost;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -227,6 +228,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.yorl.ImageGalleryUITestHost;
 				PRODUCT_NAME = ImageGalleryUITestHost;
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -238,7 +240,9 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGNING_ALLOWED = NO;
 				CODE_SIGNING_REQUIRED = NO;
-				CODE_SIGN_IDENTITY = "";
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = N39GRU244C;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = ImageGalleryUITestHost;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -251,6 +255,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.yorl.ImageGalleryUITestHost;
 				PRODUCT_NAME = ImageGalleryUITestHost;
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};

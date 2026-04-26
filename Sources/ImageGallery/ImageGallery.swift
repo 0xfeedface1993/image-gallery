@@ -21,7 +21,12 @@ public struct ImageGalleryView<Overlay: View>: View {
 
     public var body: some View {
         ImagesGallaryWrapper(images: images, selectedImage: startSelectedImage, attached: overlayBuilder, events: events, tapBackIcon: tapBackIcon)
+            .id(ImageGalleryContentIdentity(urls: images.map(\.url)))
     }
+}
+
+private struct ImageGalleryContentIdentity: Hashable {
+    let urls: [URL]
 }
 
 public extension ImageGalleryView where Overlay == EmptyView {
