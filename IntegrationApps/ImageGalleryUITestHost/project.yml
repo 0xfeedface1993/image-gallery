@@ -1,0 +1,69 @@
+name: ImageGalleryUITestHost
+
+options:
+  settingPresets: all
+  xcodeVersion: "26.3"
+
+configs:
+  Debug: debug
+  Release: release
+
+packages:
+  ImageGalleryLocal:
+    path: ../../
+
+settings:
+  base:
+    SWIFT_VERSION: 6.0
+
+targets:
+  ImageGalleryUITestHost:
+    type: application
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: Sources/App
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        CODE_SIGNING_ALLOWED: NO
+        CODE_SIGNING_REQUIRED: NO
+        CODE_SIGN_IDENTITY: ""
+        PRODUCT_BUNDLE_IDENTIFIER: com.yorl.ImageGalleryUITestHost
+        PRODUCT_NAME: ImageGalleryUITestHost
+        INFOPLIST_KEY_CFBundleDisplayName: ImageGalleryUITestHost
+        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: YES
+        TARGETED_DEVICE_FAMILY: "1,2"
+    dependencies:
+      - package: ImageGalleryLocal
+        product: ImageGallery
+
+  ImageGalleryUITestHostUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: Tests/UITests
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        CODE_SIGNING_ALLOWED: NO
+        CODE_SIGNING_REQUIRED: NO
+        CODE_SIGN_IDENTITY: ""
+        PRODUCT_BUNDLE_IDENTIFIER: com.yorl.ImageGalleryUITestHost.UITests
+        TEST_TARGET_NAME: ImageGalleryUITestHost
+    dependencies:
+      - target: ImageGalleryUITestHost
+
+schemes:
+  ImageGalleryUITestHost:
+    build:
+      targets:
+        ImageGalleryUITestHost: all
+        ImageGalleryUITestHostUITests: [test]
+    test:
+      gatherCoverageData: false
+      targets:
+        - name: ImageGalleryUITestHostUITests

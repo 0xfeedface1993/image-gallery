@@ -33,7 +33,7 @@ struct ScreenOutGeometryProgressModifier<V: View>: ViewModifier {
     func body(content: Content) -> some View {
         content
             .overlay {
-//                if progress > 0.0001 {
+                if progress > 0 || sourceFrame != .zero || targetFrame != .zero {
                     viewBuilder()
                         .onTapGesture(perform: onTap)
                         .modifier(
@@ -42,7 +42,8 @@ struct ScreenOutGeometryProgressModifier<V: View>: ViewModifier {
                                                             sourceFrame: sourceFrame,
                                                             targetFrame: targetFrame)
                         )
-//                }
+                        .clipped()
+                }
             }
     }
 }
@@ -83,8 +84,6 @@ struct ScreenOutGeometryEmbeedModifier: ViewModifier {
     var bounds: CGRect
     var sourceFrame: CGRect
     var targetFrame: CGRect
-    @Environment(\.galleryOptions) private var galleryOptions
-    @Environment(\.screenOutCoordinateSpace) private var screenOutCoordinateSpace
     
     var animatableData: Double {
         get { progress }
@@ -92,23 +91,33 @@ struct ScreenOutGeometryEmbeedModifier: ViewModifier {
     }
 
     func body(content: Content) -> some View {
+        let safeBoundsWidth = max(bounds.width, 1)
+        let safeBoundsHeight = max(bounds.height, 1)
+        let fallbackTarget = CGRect(
+            x: -safeBoundsWidth / 2,
+            y: -safeBoundsHeight / 2,
+            width: safeBoundsWidth,
+            height: safeBoundsHeight
+        )
+        let resolvedTarget = targetFrame.width > 0 && targetFrame.height > 0 ? targetFrame : fallbackTarget
+        let resolvedSource = sourceFrame.width > 0 && sourceFrame.height > 0 ? sourceFrame : resolvedTarget
+        let currentFrame = ScreenOutGeometryMath.interpolatedFrame(from: resolvedSource, to: resolvedTarget, progress: progress)
+        // At steady state, the gallery container should occupy the full screen.
+        // This keeps header and gestures bound to the screen, not the image frame.
+        let displayFrame = progress >= 0.999 ? fallbackTarget : currentFrame
+        let positionX = safeBoundsWidth / 2 + displayFrame.midX
+        let positionY = safeBoundsHeight / 2 + displayFrame.midY
+
         ZStack(alignment: .center) {
             Color.black.ignoresSafeArea().opacity(progress)
-            
+
             content
-                .frame(width: sourceFrame.width + (targetFrame.width - sourceFrame.width) * progress, height: bounds.height)
-                .offset(x: sourceFrame.origin.x + (targetFrame.origin.x - sourceFrame.origin.x) * progress,
-                        y: sourceFrame.origin.y + (targetFrame.origin.y - sourceFrame.origin.y) * progress)
-//                .frame(width: sourceFrame.width,
-//                       height: sourceFrame.height)
-//                .position(x: sourceFrame.origin.x,
-//                          y: sourceFrame.origin.y)
+                .frame(width: max(displayFrame.width, 1), height: max(displayFrame.height, 1))
+                .position(x: positionX, y: positionY)
                 .environment(\.animateProgress, progress)
-//                .frame(width: targetFrame.width,
-//                       height: targetFrame.height)
-//                .offset(x: targetFrame.origin.x,
-//                        y: targetFrame.origin.y)
         }
+        .frame(width: safeBoundsWidth, height: safeBoundsHeight)
+        .clipped()
     }
 }
 
